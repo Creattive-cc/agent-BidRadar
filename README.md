@@ -71,3 +71,4 @@ Se a chamada ao Vertex falhar, o sistema usa fallback heuristico automaticamente
 - `GET /company-profile/files`
 - `GET /company-profile/{filename}`
 - `PUT /company-profile/{filename}`
+# Sprint 1 - Infra GCP concluída
