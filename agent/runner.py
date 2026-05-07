@@ -1,0 +1,83 @@
+import time
+from datetime import datetime
+from collections.abc import Callable
+from agent.config import settings
+from agent.logging_utils import get_logger
+from agent.models import init_db, SessionLocal, Bid
+from agent.company_profile import read_profile_files
+from agent.scraper import scrape_comprasnet, scrape_bll
+from agent.analyzer.matcher import score_bid_with_profile
+
+logger = get_logger("bidradar.runner")
+
+
+def run_once() -> dict[str, int]:
+    init_db()
+    profile = read_profile_files()
+    if not profile:
+        logger.warning("Nenhum arquivo de company_profile encontrado. Analise pode ficar limitada.")
+
+    scraped_count = 0
+    saved_count = 0
+
+    scrapers: list[tuple[str, Callable[[], list]]] = []
+    if settings.enable_comprasnet:
+        scrapers.append(("ComprasNet", scrape_comprasnet))
+    if settings.enable_bll:
+        scrapers.append(("BLL", scrape_bll))
+
+    all_bids = []
+    for name, scraper in scrapers:
+        try:
+            bids = scraper()
+            scraped_count += len(bids)
+            all_bids.extend(bids)
+            logger.info("Scraper %s concluiu com %s itens.", name, len(bids))
+        except Exception as exc:
+            # Tolerancia a falhas: continua os demais scrapers.
+            logger.exception("Falha no scraper %s: %s", name, exc)
+
+    with SessionLocal() as session:
+        for bid in all_bids:
+            analyzed = score_bid_with_profile(bid, profile)
+            row = Bid(
+                title=analyzed.title,
+                agency=analyzed.agency,
+                estimated_value=analyzed.estimated_value,
+                deadline=analyzed.deadline,
+                url=analyzed.url,
+                source_site=analyzed.source_site,
+                find_time_seconds=analyzed.find_time_seconds,
+                analysis_time_seconds=analyzed.analysis_time_seconds,
+                score=analyzed.score,
+                justification=analyzed.justification,
+            )
+            session.add(row)
+            saved_count += 1
+        session.commit()
+
+    logger.info(
+        "Ciclo finalizado em %s - capturadas=%s salvas=%s",
+        datetime.utcnow().isoformat(),
+        scraped_count,
+        saved_count,
+    )
+
+    return {"scraped": scraped_count, "saved": saved_count}
+
+
+def run_forever() -> None:
+    logger.info("Iniciando loop autonomo com intervalo de %s horas.", settings.interval_hours)
+    while True:
+        try:
+            run_once()
+        except Exception as exc:
+            logger.exception("Erro no ciclo do agente: %s", exc)
+
+        sleep_seconds = max(settings.interval_hours, 1) * 3600
+        logger.info("Aguardando %s segundos para proximo ciclo.", sleep_seconds)
+        time.sleep(sleep_seconds)
+
+
+if __name__ == "__main__":
+    run_forever()
