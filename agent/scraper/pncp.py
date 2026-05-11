@@ -1,4 +1,5 @@
 """Scraper PNCP com paginação completa, rate limiting, BigQuery, Pub/Sub e Firestore."""
+
 import json
 import time
 import uuid
@@ -15,7 +16,7 @@ logger = get_logger("bidradar.scraper.pncp")
 
 PNCP_PUBLICACAO_URL = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
 _PAGE_SIZE = max(50, 10)  # API PNCP exige tamanhoPagina >= 10
-_INTER_PAGE_DELAY = 0.4   # segundos entre requisicoes de pagina
+_INTER_PAGE_DELAY = 0.4  # segundos entre requisicoes de pagina
 _INTER_MODALIDADE_DELAY = 1.0  # segundos entre modalidades
 
 DEFAULT_HEADERS = {
@@ -37,6 +38,7 @@ def _get_bq() -> Any:
     global _bq_client
     if _bq_client is None:
         from google.cloud import bigquery  # type: ignore[import-untyped]
+
         _bq_client = bigquery.Client(project=settings.gcp_project_id)
     return _bq_client
 
@@ -44,7 +46,10 @@ def _get_bq() -> Any:
 def _get_pubsub() -> Any:
     global _pubsub_client
     if _pubsub_client is None:
-        from google.cloud.pubsub_v1 import PublisherClient  # type: ignore[import-untyped]
+        from google.cloud.pubsub_v1 import (
+            PublisherClient,  # type: ignore[import-untyped]
+        )
+
         _pubsub_client = PublisherClient()
     return _pubsub_client
 
@@ -53,6 +58,7 @@ def _get_firestore() -> Any:
     global _firestore_client
     if _firestore_client is None:
         from google.cloud import firestore  # type: ignore[import-untyped]
+
         _firestore_client = firestore.Client(project=settings.gcp_project_id)
     return _firestore_client
 
@@ -60,6 +66,7 @@ def _get_firestore() -> Any:
 # ---------------------------------------------------------------------------
 # Firestore — leitura de filtros
 # ---------------------------------------------------------------------------
+
 
 def _load_filters() -> dict[str, Any]:
     try:
@@ -69,14 +76,18 @@ def _load_filters() -> dict[str, Any]:
     except Exception as exc:
         exc_str = str(exc)
         # Erros de credencial local (JWT, oauth2) sao esperados fora do GCP — silencioso.
-        if any(k in exc_str for k in ("JWT", "oauth2", "credentials", "UNAUTHENTICATED")):
+        if any(
+            k in exc_str for k in ("JWT", "oauth2", "credentials", "UNAUTHENTICATED")
+        ):
             logger.debug("Firestore indisponivel (credencial local): %s", exc_str[:120])
         else:
             logger.warning("Firestore config/filters indisponivel: %s", exc)
         return {}
 
 
-def _apply_filters(items: list[dict[str, Any]], filters: dict[str, Any]) -> list[dict[str, Any]]:
+def _apply_filters(
+    items: list[dict[str, Any]], filters: dict[str, Any]
+) -> list[dict[str, Any]]:
     valor_minimo: float = float(filters.get("valor_minimo") or 0)
     termos_exclusao: list[str] = [
         t.lower() for t in (filters.get("termos_exclusao") or [])
@@ -102,6 +113,7 @@ def _apply_filters(items: list[dict[str, Any]], filters: dict[str, Any]) -> list
 # BigQuery — deduplicacao e insercao
 # ---------------------------------------------------------------------------
 
+
 def _bq_full_table() -> str:
     return f"{settings.gcp_project_id}.{settings.bigquery_dataset}.{settings.bigquery_table}"
 
@@ -111,13 +123,16 @@ def _existing_numeros_bq(numeros: list[str]) -> set[str]:
         return set()
     try:
         from google.cloud import bigquery  # type: ignore[import-untyped]
+
         bq = _get_bq()
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ArrayQueryParameter("numeros", "STRING", numeros)
             ]
         )
-        query = f"SELECT numero FROM `{_bq_full_table()}` WHERE numero IN UNNEST(@numeros)"
+        query = (
+            f"SELECT numero FROM `{_bq_full_table()}` WHERE numero IN UNNEST(@numeros)"
+        )
         rows = bq.query(query, job_config=job_config).result()
         return {row.numero for row in rows}
     except Exception as exc:
@@ -132,7 +147,9 @@ def _insert_bq(rows: list[dict[str, Any]]) -> None:
         bq = _get_bq()
         errors = bq.insert_rows_json(_bq_full_table(), rows)
         if errors:
-            logger.warning("BigQuery insert retornou erros (primeiros 3): %s", errors[:3])
+            logger.warning(
+                "BigQuery insert retornou erros (primeiros 3): %s", errors[:3]
+            )
         else:
             logger.info("BigQuery: %s editais inseridos.", len(rows))
     except Exception as exc:
@@ -142,6 +159,7 @@ def _insert_bq(rows: list[dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 # Pub/Sub — publicacao por edital novo
 # ---------------------------------------------------------------------------
+
 
 def _pubsub_topic_path() -> str:
     return f"projects/{settings.gcp_project_id}/topics/{settings.pubsub_topic}"
@@ -161,11 +179,17 @@ def _publish_edital(edital_id: str, numero: str) -> None:
 # HTTP com retry exponencial
 # ---------------------------------------------------------------------------
 
-def _log_http_error(response: requests.Response, params: dict[str, Any], url: str) -> None:
+
+def _log_http_error(
+    response: requests.Response, params: dict[str, Any], url: str
+) -> None:
     body = (response.text or "")[:800].replace("\n", " ")
     logger.warning(
         "PNCP HTTP %s url=%s params=%s body_snippet=%s",
-        response.status_code, url, params, body,
+        response.status_code,
+        url,
+        params,
+        body,
     )
 
 
@@ -178,14 +202,23 @@ def _fetch_pncp_json(
 
             if resp.status_code == 429:
                 wait = min(2 ** (attempt + 1) * 2, 60)
-                logger.warning("PNCP rate limit (429) — aguardando %ss (tentativa %d)", wait, attempt + 1)
+                logger.warning(
+                    "PNCP rate limit (429) — aguardando %ss (tentativa %d)",
+                    wait,
+                    attempt + 1,
+                )
                 time.sleep(wait)
                 continue
 
             if resp.status_code in (502, 503, 504):
-                wait = 2 ** attempt
+                wait = 2**attempt
                 if attempt < max_attempts - 1:
-                    logger.warning("PNCP %s — retry em %ss (tentativa %d)", resp.status_code, wait, attempt + 1)
+                    logger.warning(
+                        "PNCP %s — retry em %ss (tentativa %d)",
+                        resp.status_code,
+                        wait,
+                        attempt + 1,
+                    )
                     time.sleep(wait)
                     continue
 
@@ -196,12 +229,19 @@ def _fetch_pncp_json(
             return resp.json()
 
         except requests.RequestException as exc:
-            wait = 2 ** attempt
+            wait = 2**attempt
             if attempt < max_attempts - 1:
-                logger.warning("PNCP request erro (tentativa %d/%d): %s", attempt + 1, max_attempts, exc)
+                logger.warning(
+                    "PNCP request erro (tentativa %d/%d): %s",
+                    attempt + 1,
+                    max_attempts,
+                    exc,
+                )
                 time.sleep(wait)
                 continue
-            logger.warning("PNCP request falhou definitivamente params=%s err=%s", params, exc)
+            logger.warning(
+                "PNCP request falhou definitivamente params=%s err=%s", params, exc
+            )
             return None
 
     return None
@@ -210,6 +250,7 @@ def _fetch_pncp_json(
 # ---------------------------------------------------------------------------
 # Extracao de itens e chave de dedup
 # ---------------------------------------------------------------------------
+
 
 def _items_from_payload(payload: Any) -> list[dict[str, Any]]:
     if not isinstance(payload, dict):
@@ -257,6 +298,7 @@ def _parse_modalidades() -> list[int]:
 # ---------------------------------------------------------------------------
 # Paginacao completa por modalidade
 # ---------------------------------------------------------------------------
+
 
 def _fetch_all_for_modalidade(
     codigo: int, data_inicial: str, data_final: str
@@ -306,6 +348,32 @@ def _fetch_all_for_modalidade(
 # Conversao de item PNCP → ScrapedBid + linha BigQuery
 # ---------------------------------------------------------------------------
 
+
+def _pncp_portal_url(numero_controle: str) -> str:
+    """Constroi a URL do portal PNCP a partir do numeroControlePNCP."""
+    try:
+        # Ex: "05472936000139-1-000082/2026"
+        parts = numero_controle.split("-")
+        if len(parts) < 3:
+            return ""
+
+        cnpj = parts[0]
+        seq_ano_part = parts[2]
+
+        # Ex: "000082/2026"
+        seq_ano_split = seq_ano_part.split("/")
+        if len(seq_ano_split) < 2:
+            return ""
+
+        sequencial = int(seq_ano_split[0])
+        ano = seq_ano_split[1]
+
+        return f"https://pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}"
+    except (ValueError, IndexError) as e:
+        logger.warning("Formato PNCP URL invalido: %s. Erro: %s", numero_controle, e)
+        return ""
+
+
 def _parse_date_str(val: str | None) -> str | None:
     return val[:10] if val and len(val) >= 10 else None
 
@@ -338,32 +406,28 @@ def _build_bid_and_row(
         or ""
     )
     numero = str(
-        item.get("numeroControlePNCP")
-        or item.get("numeroCompra")
-        or _item_key(item)
+        item.get("numeroControlePNCP") or item.get("numeroCompra") or _item_key(item)
     )
     if not url and item.get("numeroControlePNCP"):
-        url = f"https://pncp.gov.br/app/editais/{item['numeroControlePNCP']}"
+        url = _pncp_portal_url(item["numeroControlePNCP"])
     if not url:
         return None
 
     modalidade_nome = (
-        item.get("modalidade")
-        or item.get("nomeModalidade")
-        or str(codigo)
+        item.get("modalidade") or item.get("nomeModalidade") or str(codigo)
     )
     estimated_value = item.get("valorTotalEstimado") or item.get("valorTotal")
     data_publicacao = _parse_date_str(item.get("dataPublicacaoPncp"))
     data_abertura = _parse_datetime_str(
-        item.get("dataEncerramentoProposta")
-        or item.get("dataAberturaProposta")
+        item.get("dataEncerramentoProposta") or item.get("dataAberturaProposta")
     )
 
     bid = ScrapedBid(
         title=str(title)[:500],
         agency=str(agency)[:255],
         estimated_value=estimated_value,
-        deadline=item.get("dataEncerramentoProposta") or item.get("dataAberturaProposta"),
+        deadline=item.get("dataEncerramentoProposta")
+        or item.get("dataAberturaProposta"),
         url=url,
         source_site="ComprasNet/PNCP",
         find_time_seconds=0.0,
@@ -376,8 +440,9 @@ def _build_bid_and_row(
         "orgao": str(agency)[:500],
         "modalidade": str(modalidade_nome)[:100],
         "objeto": str(title)[:2000],
-        "url": url,
-        "valor_estimado": float(estimated_value) if estimated_value is not None else None,
+        "valor_estimado": float(estimated_value)
+        if estimated_value is not None
+        else None,
         "data_publicacao": data_publicacao,
         "data_abertura": data_abertura,
         "status": "publicado",
@@ -391,6 +456,7 @@ def _build_bid_and_row(
 # ---------------------------------------------------------------------------
 # Funcao principal
 # ---------------------------------------------------------------------------
+
 
 def scrape_pncp() -> list[ScrapedBid]:
     start = time.perf_counter()
@@ -420,7 +486,10 @@ def scrape_pncp() -> list[ScrapedBid]:
 
         logger.info(
             "PNCP modalidade=%s paginas_coletadas=%s itens_novos=%s total=%s",
-            codigo, novos, novos, len(all_items),
+            codigo,
+            novos,
+            novos,
+            len(all_items),
         )
         if idx < len(modalidades) - 1:
             time.sleep(_INTER_MODALIDADE_DELAY)
@@ -430,7 +499,9 @@ def scrape_pncp() -> list[ScrapedBid]:
     bq_rows_by_numero: dict[str, tuple[ScrapedBid, dict[str, Any]]] = {}
 
     for item in all_items:
-        result = _build_bid_and_row(item, codigo=int(item.get("codigoModalidadeContratacao", 0)))
+        result = _build_bid_and_row(
+            item, codigo=int(item.get("codigoModalidadeContratacao", 0))
+        )
         if result is None:
             continue
         bid, bq_row = result
@@ -456,7 +527,9 @@ def scrape_pncp() -> list[ScrapedBid]:
 
     logger.info(
         "PNCP concluido: coletados=%s novos_bq=%s tempo=%.1fs",
-        len(bids), len(new_rows), elapsed,
+        len(bids),
+        len(new_rows),
+        elapsed,
     )
     if not bids:
         logger.warning(
