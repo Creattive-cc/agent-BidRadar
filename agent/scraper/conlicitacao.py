@@ -255,6 +255,7 @@ def _build_bid_and_row(item: dict[str, Any]) -> tuple[ScrapedBid, dict[str, Any]
         "orgao": item["orgao"][:500],
         "modalidade": item["modalidade"][:100],
         "objeto": item["objeto"][:2000],
+        "url": item["url"],
         "valor_estimado": item.get("valor_estimado"),
         "data_publicacao": item.get("data_publicacao"),
         "data_abertura": item.get("data_abertura"),

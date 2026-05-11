@@ -376,6 +376,7 @@ def _build_bid_and_row(
         "orgao": str(agency)[:500],
         "modalidade": str(modalidade_nome)[:100],
         "objeto": str(title)[:2000],
+        "url": url,
         "valor_estimado": float(estimated_value) if estimated_value is not None else None,
         "data_publicacao": data_publicacao,
         "data_abertura": data_abertura,

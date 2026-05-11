@@ -5,6 +5,7 @@ from datetime import datetime
 from agent.analyzer.matcher import score_bid_with_profile
 from agent.company_profile import read_profile_files
 from agent.config import settings
+from agent.downloader import download_pending_pdfs
 from agent.logging_utils import get_logger
 from agent.models import Bid, SessionLocal, init_db
 from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao
@@ -61,6 +62,10 @@ def run_once() -> dict[str, int]:
             saved_count += 1
         session.commit()
 
+    # Fora do bloco with session, após o commit.
+    # Tenta baixar os PDFs pendentes, que podem incluir os que acabaram de ser inseridos no BigQuery pelos scrapers.
+    pdf_results = download_pending_pdfs(limit=20)
+    logger.info("Resultado do download de PDFs: %s", pdf_results)
     logger.info(
         "Ciclo finalizado em %s - capturadas=%s salvas=%s",
         datetime.utcnow().isoformat(),
