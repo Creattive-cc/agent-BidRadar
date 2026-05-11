@@ -1,12 +1,13 @@
 import time
-from datetime import datetime
 from collections.abc import Callable
+from datetime import datetime
+
+from agent.analyzer.matcher import score_bid_with_profile
+from agent.company_profile import read_profile_files
 from agent.config import settings
 from agent.logging_utils import get_logger
-from agent.models import init_db, SessionLocal, Bid
-from agent.company_profile import read_profile_files
-from agent.scraper import scrape_comprasnet, scrape_bll
-from agent.analyzer.matcher import score_bid_with_profile
+from agent.models import Bid, SessionLocal, init_db
+from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao
 
 logger = get_logger("bidradar.runner")
 
@@ -15,7 +16,9 @@ def run_once() -> dict[str, int]:
     init_db()
     profile = read_profile_files()
     if not profile:
-        logger.warning("Nenhum arquivo de company_profile encontrado. Analise pode ficar limitada.")
+        logger.warning(
+            "Nenhum arquivo de company_profile encontrado. Analise pode ficar limitada."
+        )
 
     scraped_count = 0
     saved_count = 0
@@ -25,6 +28,8 @@ def run_once() -> dict[str, int]:
         scrapers.append(("ComprasNet", scrape_comprasnet))
     if settings.enable_bll:
         scrapers.append(("BLL", scrape_bll))
+    if settings.enable_conlicitacao:
+        scrapers.append(("ConLicitação", scrape_conlicitacao))
 
     all_bids = []
     for name, scraper in scrapers:
@@ -67,7 +72,9 @@ def run_once() -> dict[str, int]:
 
 
 def run_forever() -> None:
-    logger.info("Iniciando loop autonomo com intervalo de %s horas.", settings.interval_hours)
+    logger.info(
+        "Iniciando loop autonomo com intervalo de %s horas.", settings.interval_hours
+    )
     while True:
         try:
             run_once()
