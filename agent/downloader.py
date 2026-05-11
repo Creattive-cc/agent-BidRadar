@@ -59,6 +59,82 @@ def _blob_exists(bucket: storage.Bucket, gcs_path: str) -> bool:
     return blob.exists()
 
 
+def _is_pncp_url(url: str) -> bool:
+    """Verifica se a URL e do portal de editais do PNCP."""
+    return "pncp.gov.br/app/editais/" in url
+
+
+def _parse_pncp_portal_url(url: str) -> tuple[str, str, int] | None:
+    """Extrai (cnpj, ano, sequencial) de uma URL do portal PNCP."""
+    match = re.search(r"pncp\.gov\.br/app/editais/(\d+)/(\d{4})/(\d+)", url)
+    if not match:
+        return None
+    cnpj, ano, sequencial_str = match.groups()
+    try:
+        return cnpj, ano, int(sequencial_str)
+    except (ValueError, IndexError):
+        return None
+
+
+def _sanitize_filename(name: str) -> str:
+    """Remove caracteres invalidos de um nome de arquivo e trunca."""
+    name = re.sub(r'[<>:"/\\|?*]', "_", name)
+    name = re.sub(r"\s+", "_", name)
+    return name[:100]
+
+
+def _list_pncp_arquivos(cnpj: str, ano: str, sequencial: int) -> list[dict[str, Any]]:
+    """Lista os arquivos de um edital no PNCP."""
+    api_url = f"https://pncp.gov.br/api/pncp/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos"
+    params = {"pagina": 1, "tamanhoPagina": 50}
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        response = requests.get(api_url, params=params, headers=headers, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+        arquivos = data if isinstance(data, list) else data.get("data", [])
+        return [arq for arq in arquivos if arq.get("statusAtivo")]
+    except requests.exceptions.RequestException as e:
+        logger.warning(
+            "Falha ao listar arquivos do PNCP para %s/%s/%s: %s",
+            cnpj,
+            ano,
+            sequencial,
+            e,
+        )
+        return []
+    except Exception as e:
+        logger.warning("Erro no formato da resposta da API de arquivos PNCP: %s", e)
+        return []
+
+
+def _download_pncp_arquivo(
+    cnpj: str, ano: str, sequencial: int, sequencial_documento: int
+) -> bytes | None:
+    """Baixa um arquivo especifico de um edital do PNCP com retries."""
+    api_url = f"https://pncp.gov.br/pncp-api/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/arquivos/{sequencial_documento}"
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        response = session.get(api_url, headers=headers, timeout=45)
+        response.raise_for_status()
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "application/json" in content_type:
+            logger.warning(
+                "API de download PNCP retornou JSON inesperado: %s", response.text[:200]
+            )
+            return None
+        return response.content
+    except requests.exceptions.RequestException as e:
+        logger.error("Falha ao baixar arquivo do PNCP %s: %s", api_url, e)
+        return None
+
+
 def _find_pdf_link_in_html(html_content: str, base_url: str) -> str | None:
     """Tenta encontrar um link de PDF em um conteudo HTML."""
     patterns = [
@@ -163,6 +239,75 @@ def _update_gcs_path_bq(edital_id: str, gcs_path: str) -> None:
         logger.error("Falha ao atualizar BigQuery para edital_id %s: %s", edital_id, e)
 
 
+def _process_pncp_bid(
+    bid: dict[str, Any], bucket: storage.Bucket
+) -> tuple[str | None, str]:
+    """
+    Processa o download de arquivos para um edital do PNCP, salvando-os no GCS.
+    Retorna o GCS path do primeiro arquivo e o status da operacao.
+    """
+    edital_id = bid["edital_id"]
+    url = bid["url"]
+
+    parsed_url = _parse_pncp_portal_url(url)
+    if not parsed_url:
+        logger.warning("URL do PNCP com formato invalido, pulando: %s", url)
+        return None, "error"
+
+    cnpj, ano, sequencial = parsed_url
+    arquivos = _list_pncp_arquivos(cnpj, ano, sequencial)
+    if not arquivos:
+        logger.warning("Nenhum arquivo ativo encontrado para o edital PNCP: %s", url)
+        return None, "error"
+
+    logger.info(
+        "Encontrados %d arquivos para o edital PNCP %s", len(arquivos), edital_id
+    )
+
+    first_gcs_path = None
+    downloaded_count = 0
+    skipped_count = 0
+
+    for arquivo in arquivos:
+        try:
+            seq_doc = arquivo.get("sequencialDocumento")
+            titulo = arquivo.get("titulo", f"arquivo_{seq_doc}")
+            if not seq_doc:
+                continue
+
+            sanitized_title = _sanitize_filename(titulo)
+            gcs_path = f"editais/pncp/{ano}/{cnpj}/{sequencial}/{seq_doc}_{sanitized_title}.pdf"
+
+            if _blob_exists(bucket, gcs_path):
+                logger.info("Arquivo PNCP ja existe no GCS, pulando: %s", gcs_path)
+                skipped_count += 1
+                if not first_gcs_path:
+                    first_gcs_path = gcs_path
+                continue
+
+            pdf_bytes = _download_pncp_arquivo(cnpj, ano, sequencial, seq_doc)
+            if not pdf_bytes:
+                continue
+
+            uploaded_path = _upload_to_gcs(pdf_bytes, gcs_path)
+            if uploaded_path:
+                downloaded_count += 1
+                if not first_gcs_path:
+                    first_gcs_path = uploaded_path
+        except Exception as e:
+            logger.error(
+                "Erro ao processar arquivo PNCP %s: %s",
+                arquivo.get("sequencialDocumento"),
+                e,
+            )
+
+    if first_gcs_path:
+        _update_gcs_path_bq(edital_id, first_gcs_path)
+        return first_gcs_path, "downloaded" if downloaded_count > 0 else "skipped"
+
+    return None, "error"
+
+
 def _fetch_pending_bids_bq(limit: int) -> list[dict[str, Any]]:
     """Busca no BigQuery por editais pendentes de download de PDF."""
     try:
@@ -206,6 +351,16 @@ def download_pending_pdfs(limit: int = 50) -> dict[str, int]:
             bid["created_at"],
         )
         try:
+            if _is_pncp_url(url):
+                _, status = _process_pncp_bid(bid, bucket)
+                if status == "downloaded":
+                    stats["downloaded"] += 1
+                elif status == "skipped":
+                    stats["skipped"] += 1
+                else:
+                    stats["errors"] += 1
+                continue
+
             gcs_path = _build_gcs_path(edital_id, portal, created_at)
 
             if _blob_exists(bucket, gcs_path):
