@@ -1,15 +1,17 @@
-import json
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from google.adk.agents import LlmAgent
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
 from google.cloud import bigquery
-from pydantic import ValidationError
+from google.genai import types
+from pydantic import BaseModel, ValidationError
 
 from agent.config import settings
 from agent.logging_utils import get_logger
-from agent.schemas import AnalysisResult
+from agent.schemas import AnalysisResult, ChecklistItem
 
 logger = get_logger("bidradar.analyzer.gemini")
 
@@ -72,6 +74,45 @@ def _save_analysis_bq(result: AnalysisResult) -> None:
             result.edital_id,
             exc,
         )
+
+
+class AnalysisResultInternal(BaseModel):
+    """Schema for the data returned by the LLM, without manually added fields."""
+
+    score: float
+    prioridade: str
+    resumo: str
+    checklist: list[ChecklistItem]
+    justificativa: str
+
+
+def _run_agent(agent: LlmAgent, user_prompt: str) -> dict | None:
+    """Executa o agente ADK e retorna o dict do resultado ou None em caso de falha."""
+    try:
+        session_service = InMemorySessionService()
+        session = session_service.create_session_sync(
+            app_name="bidradar", user_id="system"
+        )
+        runner = Runner(
+            agent=agent,
+            app_name="bidradar",
+            session_service=session_service,
+        )
+        for event in runner.run(
+            user_id="system",
+            session_id=session.id,
+            new_message=types.Content(
+                role="user", parts=[types.Part(text=user_prompt)]
+            ),
+        ):
+            pass  # consumir eventos
+        final = session_service.get_session_sync(
+            app_name="bidradar", user_id="system", session_id=session.id
+        )
+        return final.state.get("analysis")
+    except Exception as exc:
+        logger.error("ADK runner falhou: %s", exc)
+        return None
 
 
 def analyze_edital(
@@ -141,41 +182,38 @@ Certificações: ISO 27001, LGPD compliance."""
 Gere a análise em formato JSON conforme as regras do sistema."""
 
     agent = LlmAgent(
+        name="bid_analyzer",
         model=settings.vertex_model,
-        system_prompt=system_prompt,
-        project_id=settings.vertex_project_id,
-        location=settings.vertex_location,
+        instruction=system_prompt,
+        output_schema=AnalysisResultInternal,
+        output_key="analysis",
     )
 
-    for attempt in range(max_retries):
+    result_dict = None
+    for attempt in range(1, max_retries + 1):
+        result_dict = _run_agent(agent, user_prompt)
+        if result_dict:
+            break
+        logger.warning(
+            "Tentativa %d/%d sem resultado para edital %s",
+            attempt,
+            max_retries,
+            edital_id,
+        )
+        if attempt < max_retries:
+            time.sleep(retry_delay)
+
+    if result_dict:
         try:
-            response_str = agent.predict(user_prompt)
-            response_json = json.loads(response_str)
-            response_json["edital_id"] = edital_id
-            response_json["rag_context_used"] = rag_context_used
-            analysis_result = AnalysisResult.model_validate(response_json)
+            result_dict["edital_id"] = edital_id
+            result_dict["rag_context_used"] = rag_context_used
+            analysis_result = AnalysisResult.model_validate(result_dict)
             _save_analysis_bq(analysis_result)
             return analysis_result
-        except (json.JSONDecodeError, ValidationError) as e:
-            logger.warning(
-                "Tentativa %d/%d falhou ao decodificar/validar JSON para edital %s: %s",
-                attempt + 1,
-                max_retries,
-                edital_id,
-                e,
-            )
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-        except Exception as e:
+        except ValidationError as exc:
             logger.error(
-                "Tentativa %d/%d falhou com erro inesperado para edital %s: %s",
-                attempt + 1,
-                max_retries,
-                edital_id,
-                e,
+                "Falha ao validar resultado do ADK para edital %s: %s", edital_id, exc
             )
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
 
     logger.error(
         "Falha total na análise automática do edital %s após %d tentativas.",
