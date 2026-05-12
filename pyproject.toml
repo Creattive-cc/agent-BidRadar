@@ -20,6 +20,7 @@ dependencies = [
   "playwright>=1.59.0",
   "google-cloud-secret-manager>=2.28.0",
   "google-cloud-storage>=3.10.1",
+  "google-adk>=1.33.0",
 ]
 
 [tool.uv]

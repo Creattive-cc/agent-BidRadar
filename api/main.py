@@ -2,11 +2,12 @@ import base64
 import json
 from pathlib import Path
 
+from agent.analyzer.gemini_analyzer import analyze_edital
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from agent.company_profile import PROFILE_DIR, ensure_profile_dir
+from agent.company_profile import PROFILE_DIR, ensure_profile_dir, read_profile_files
 from agent.config import settings
 from agent.downloader import download_pending_pdfs
 from agent.logging_utils import get_logger
@@ -133,6 +134,25 @@ def pubsub_analisar(payload: PubSubPushPayload) -> dict[str, str]:
             "Resultado do download de PDF para edital %s: %s",
             edital_id,
             download_results,
+        )
+
+        # Placeholder: pdf_text virá do ID-41 (Wagner)
+        # Por ora passa string vazia para validar o pipeline
+        profile_docs = read_profile_files()
+        company_profile_text = "\n\n".join(
+            f"## {name}\n{content}" for name, content in profile_docs.items()
+        )
+        result = analyze_edital(
+            edital_id=edital_id,
+            pdf_text="",  # TODO ID-41
+            bid_metadata={"objetoCompra": numero},
+            company_profile=company_profile_text,
+        )
+        logger.info(
+            "Análise concluída: edital=%s score=%.1f prioridade=%s",
+            edital_id,
+            result.score,
+            result.prioridade,
         )
 
         return {"status": "ok", "edital_id": edital_id}
