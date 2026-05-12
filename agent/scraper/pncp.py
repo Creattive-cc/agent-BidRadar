@@ -92,17 +92,41 @@ def _apply_filters(
     termos_exclusao: list[str] = [
         t.lower() for t in (filters.get("termos_exclusao") or [])
     ]
+    excluir_me_epp: bool = bool(filters.get("excluir_me_epp", False))
 
     result = []
     for item in items:
+        identifier = _item_key(item)
+
+        # 1. Filtro de ME/EPP: descarta se for exclusivo para ME/EPP
+        if excluir_me_epp and item.get("tipoBeneficioId") == 1:
+            logger.debug("[FILTRO] edital exclusivo ME/EPP descartado: %s", identifier)
+            continue
+
+        # 2. Filtro de valor mínimo
         if valor_minimo:
             valor = item.get("valorTotalEstimado") or item.get("valorTotal") or 0
             if valor and float(valor) < valor_minimo:
+                logger.debug(
+                    "[FILTRO] valor abaixo do mínimo: %s (valor=%.2f, minimo=%.2f)",
+                    identifier,
+                    float(valor),
+                    valor_minimo,
+                )
                 continue
 
+        # 3. Filtro de termos de exclusão
         if termos_exclusao:
             objeto = (item.get("objetoCompra") or item.get("descricao") or "").lower()
-            if any(termo in objeto for termo in termos_exclusao):
+            matched_term = next(
+                (termo for termo in termos_exclusao if termo in objeto), None
+            )
+            if matched_term:
+                logger.debug(
+                    "[FILTRO] termo de exclusão '%s' encontrado: %s",
+                    matched_term,
+                    identifier,
+                )
                 continue
 
         result.append(item)
