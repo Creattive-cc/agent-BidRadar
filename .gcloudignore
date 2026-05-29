@@ -1,10 +1,12 @@
-service_account.json
-.env
-.venv/
 .git/
+.venv/
+venv/
 __pycache__/
 *.pyc
+*.db
+*.lock
+.env
+service_account.json
 data/
 logs/
-frontend/node_modules/
-*.db
+node_modules/

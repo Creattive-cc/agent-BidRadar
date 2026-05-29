@@ -111,6 +111,24 @@ SEED_BIDS: list[ScrapedBid] = [
 
 
 # --------------------------------------------------------------------------- #
+# Filtro pré-IA: palavras-chave de TI (Jira ID-39)
+# --------------------------------------------------------------------------- #
+KEYWORDS_TI: list[str] = [
+    "software", "sistema", "tecnologia da informacao", "nuvem", "cloud", "dados",
+    "business intelligence", "licenca", "licenciamento", "google workspace",
+    "workspace", "email", "servidor", "datacenter", "ciberseguranca",
+    "seguranca da informacao", "desenvolvimento de sistema", "aplicativo",
+    "plataforma", "suporte tecnico", "helpdesk", "infraestrutura de ti",
+    "portal", "aplicacao web",
+]
+
+
+def _norm(s: str) -> str:
+    import unicodedata
+    return unicodedata.normalize("NFD", s).encode("ascii", "ignore").decode("ascii").lower()
+
+
+# --------------------------------------------------------------------------- #
 # Lógica (sem Streamlit — testável isoladamente)
 # --------------------------------------------------------------------------- #
 def get_profile_docs() -> dict[str, str]:
@@ -131,9 +149,19 @@ def collect_live(days: int, modalidades: str, limit: int) -> list[ScrapedBid]:
     return bids[:limit] if limit else bids
 
 
-def collect_live_fast(modalidades: str, dias: int = 7, limit: int = 20) -> list[ScrapedBid]:
+_MAX_PAGES_PER_MOD = 12  # teto de segurança: ~600 editais examinados por modalidade
+
+
+def collect_live_fast(
+    modalidades: str,
+    dias: int = 7,
+    limit: int = 20,
+    palavras_chave: list[str] | None = None,
+) -> list[ScrapedBid]:
     """Coletor leve para a demo: sem BigQuery/Pub/Sub/Firestore.
-    Varre apenas as modalidades pedidas e para assim que acumular `limit` editais."""
+    Para ao acumular `limit` matches (ou ao atingir _MAX_PAGES_PER_MOD páginas).
+    Se `palavras_chave` for fornecido, só aceita editais cujo título contenha
+    alguma das palavras (sem acento, case-insensitive)."""
     import time
     from datetime import date, timedelta
 
@@ -160,7 +188,9 @@ def collect_live_fast(modalidades: str, dias: int = 7, limit: int = 20) -> list[
             except ValueError:
                 pass
     if not mods:
-        mods = [8, 6]
+        mods = [6, 8]
+
+    kws_norm = [_norm(k) for k in palavras_chave] if palavras_chave else None
 
     bids: list[ScrapedBid] = []
     seen: set[str] = set()
@@ -169,7 +199,7 @@ def collect_live_fast(modalidades: str, dias: int = 7, limit: int = 20) -> list[
         if len(bids) >= limit:
             break
         page = 1
-        while len(bids) < limit:
+        while len(bids) < limit and page <= _MAX_PAGES_PER_MOD:
             params = {
                 "pagina": page,
                 "tamanhoPagina": _PAGE_SIZE,
@@ -192,6 +222,8 @@ def collect_live_fast(modalidades: str, dias: int = 7, limit: int = 20) -> list[
                 if result is None:
                     continue
                 bid, _ = result
+                if kws_norm and not any(kw in _norm(bid.title) for kw in kws_norm):
+                    continue
                 key = bid.url or bid.title
                 if key in seen:
                     continue
@@ -286,10 +318,15 @@ def main() -> None:  # pragma: no cover (UI)
             help="Use 'Dados de exemplo' para a apresentação (não depende de rede).",
         )
 
-        dias, modalidades, limite = 30, "8,6", 30
+        dias, modalidades, limite, filtro_ti = 30, "6,8", 30, False
         if fonte == "PNCP ao vivo":
             modalidades = st.text_input("Modalidades PNCP", "6,8")
             limite = st.slider("Máx. de editais", 5, 60, 25, step=5)
+            filtro_ti = st.checkbox(
+                "Só editais de TI/relevantes (filtro pré-IA)",
+                value=True,
+                help="Filtra por palavras-chave antes de enviar ao Gemini — mais rápido e sem custo extra.",
+            )
             st.caption("6=Pregão Eletrônico · 8=Dispensa · veja a Lei 14.133.")
 
         analise = st.radio(
@@ -312,8 +349,14 @@ def main() -> None:  # pragma: no cover (UI)
         profile = get_profile_docs()
         try:
             if fonte == "PNCP ao vivo":
-                with st.spinner("Consultando o PNCP em tempo real…"):
-                    raw = collect_live_fast(modalidades, dias=7, limit=limite)
+                spinner_msg = "Filtrando editais de TI no PNCP…" if filtro_ti else "Consultando o PNCP em tempo real…"
+                with st.spinner(spinner_msg):
+                    raw = collect_live_fast(
+                        modalidades,
+                        dias=7,
+                        limit=limite,
+                        palavras_chave=KEYWORDS_TI if filtro_ti else None,
+                    )
                 if not raw:
                     st.warning(
                         "O PNCP não retornou itens agora. Usando dados de exemplo para a demo."
