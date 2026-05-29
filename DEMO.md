@@ -55,9 +55,47 @@ gcloud builds submit --config=cloudbuild-demo.yaml \
 
 - **Heurística** (padrão): palavras-chave do perfil × objeto do edital. Sem
   credenciais, instantâneo — ideal para a apresentação.
-- **Gemini / Vertex AI**: selecione na barra lateral. Requer `service_account.json`
-  e as libs do projeto principal (`langchain-google-genai`). Se indisponível,
-  o agente **cai automaticamente** na heurística (nada quebra na frente do chefe).
+- **Gemini / Vertex AI**: selecione na barra lateral. Usa `google-genai` SDK com
+  `response_schema` (JSON estruturado). Se indisponível, o agente **cai
+  automaticamente** na heurística (nada quebra na frente do chefe).
+
+  Modelo em uso: **`gemini-2.5-pro`** · região **`us-central1`**
+  (atualizado automaticamente por `scripts/test_gemini.py`).
+
+### Autenticação local (dev)
+
+Coloque `service_account.json` na raiz do projeto (já no `.gitignore`).
+O matcher lê o arquivo automaticamente se encontrado.
+
+### Autenticação no Cloud Run (ADC)
+
+No Cloud Run não suba o JSON — use a service account do próprio serviço:
+
+```bash
+# 1. Criar SA dedicada para o serviço (se ainda não existir)
+gcloud iam service-accounts create bidradar-demo \
+  --display-name="BidRadar Demo" \
+  --project=creattive-licitacoes-dev
+
+# 2. Conceder papel Vertex AI User à SA
+gcloud projects add-iam-policy-binding creattive-licitacoes-dev \
+  --member="serviceAccount:bidradar-demo@creattive-licitacoes-dev.iam.gserviceaccount.com" \
+  --role="roles/aiplatform.user"
+
+# 3. Deploy configurando a SA do serviço e as env vars de Vertex
+gcloud run deploy bidradar-demo \
+  --image=gcr.io/creattive-licitacoes-dev/bidradar-demo \
+  --service-account=bidradar-demo@creattive-licitacoes-dev.iam.gserviceaccount.com \
+  --set-env-vars="BIDRADAR_LLM_PROVIDER=vertex_gemini,\
+BIDRADAR_VERTEX_PROJECT_ID=creattive-licitacoes-dev,\
+BIDRADAR_VERTEX_LOCATION=us-central1,\
+BIDRADAR_VERTEX_MODEL=gemini-2.5-pro" \
+  --region=us-central1 \
+  --allow-unauthenticated
+```
+
+O `matcher.py` detecta automaticamente a ausência do `service_account.json`
+e usa ADC — o Cloud Run injeta as credenciais da SA do serviço via metadata server.
 
 ## Editar o perfil da empresa
 

@@ -42,12 +42,14 @@ steps:
       - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:latest
       - --region=$_REGION
       - --allow-unauthenticated
-      - --memory=512Mi
-      - --cpu=1
-      - --min-instances=0
+      - --service-account=bidradar-demo@creattive-licitacoes-dev.iam.gserviceaccount.com
+      - --memory=1Gi
+      - --cpu=2
+      - --min-instances=1
       - --max-instances=2
       - --port=8080
-      - --set-env-vars=BIDRADAR_LLM_PROVIDER=heuristic,BIDRADAR_ENABLE_BLL=false,BIDRADAR_ENABLE_CONLICITACAO=false
+      - --timeout=600
+      - --set-env-vars=BIDRADAR_LLM_PROVIDER=heuristic,BIDRADAR_VERTEX_PROJECT_ID=creattive-licitacoes-dev,BIDRADAR_VERTEX_LOCATION=us-central1,BIDRADAR_VERTEX_MODEL=gemini-2.5-flash,GOOGLE_GENAI_USE_VERTEXAI=true,BIDRADAR_ENABLE_BLL=false,BIDRADAR_ENABLE_CONLICITACAO=false
 
 images:
   - $_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:latest

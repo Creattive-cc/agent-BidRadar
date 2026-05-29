@@ -1,0 +1,10 @@
+service_account.json
+.env
+.venv/
+.git/
+__pycache__/
+*.pyc
+data/
+logs/
+frontend/node_modules/
+*.db

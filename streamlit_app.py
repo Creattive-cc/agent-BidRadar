@@ -131,6 +131,83 @@ def collect_live(days: int, modalidades: str, limit: int) -> list[ScrapedBid]:
     return bids[:limit] if limit else bids
 
 
+def collect_live_fast(modalidades: str, dias: int = 7, limit: int = 20) -> list[ScrapedBid]:
+    """Coletor leve para a demo: sem BigQuery/Pub/Sub/Firestore.
+    Varre apenas as modalidades pedidas e para assim que acumular `limit` editais."""
+    import time
+    from datetime import date, timedelta
+
+    from agent.scraper.pncp import (
+        PNCP_PUBLICACAO_URL,
+        _INTER_PAGE_DELAY,
+        _PAGE_SIZE,
+        _build_bid_and_row,
+        _fetch_pncp_json,
+        _items_from_payload,
+        _total_pages,
+    )
+
+    end_date = date.today()
+    data_final = end_date.strftime("%Y%m%d")
+    data_inicial = (end_date - timedelta(days=dias)).strftime("%Y%m%d")
+
+    mods: list[int] = []
+    for part in modalidades.split(","):
+        part = part.strip()
+        if part:
+            try:
+                mods.append(int(part))
+            except ValueError:
+                pass
+    if not mods:
+        mods = [8, 6]
+
+    bids: list[ScrapedBid] = []
+    seen: set[str] = set()
+
+    for codigo in mods:
+        if len(bids) >= limit:
+            break
+        page = 1
+        while len(bids) < limit:
+            params = {
+                "pagina": page,
+                "tamanhoPagina": _PAGE_SIZE,
+                "dataInicial": data_inicial,
+                "dataFinal": data_final,
+                "codigoModalidadeContratacao": codigo,
+            }
+            payload = _fetch_pncp_json(PNCP_PUBLICACAO_URL, params)
+            if not payload:
+                break
+            items = _items_from_payload(payload)
+            if not items:
+                break
+            for item in items:
+                if len(bids) >= limit:
+                    break
+                if not isinstance(item, dict):
+                    continue
+                result = _build_bid_and_row(item, codigo)
+                if result is None:
+                    continue
+                bid, _ = result
+                key = bid.url or bid.title
+                if key in seen:
+                    continue
+                seen.add(key)
+                bids.append(bid)
+            total = _total_pages(payload)
+            if total is not None and page >= total:
+                break
+            if len(items) < _PAGE_SIZE:
+                break
+            page += 1
+            time.sleep(_INTER_PAGE_DELAY)
+
+    return bids
+
+
 def priority_of(score: float) -> tuple[str, str]:
     """Retorna (rótulo, cor) a partir do score."""
     if score >= 75:
@@ -211,9 +288,9 @@ def main() -> None:  # pragma: no cover (UI)
 
         dias, modalidades, limite = 30, "8,6", 30
         if fonte == "PNCP ao vivo":
-            modalidades = st.text_input("Modalidades PNCP", "8,6")
+            modalidades = st.text_input("Modalidades PNCP", "6,8")
             limite = st.slider("Máx. de editais", 5, 60, 25, step=5)
-            st.caption("8=Pregão Eletrônico · 6=Dispensa · veja a Lei 14.133.")
+            st.caption("6=Pregão Eletrônico · 8=Dispensa · veja a Lei 14.133.")
 
         analise = st.radio(
             "Motor de análise",
@@ -236,7 +313,7 @@ def main() -> None:  # pragma: no cover (UI)
         try:
             if fonte == "PNCP ao vivo":
                 with st.spinner("Consultando o PNCP em tempo real…"):
-                    raw = collect_live(dias, modalidades, limite)
+                    raw = collect_live_fast(modalidades, dias=7, limit=limite)
                 if not raw:
                     st.warning(
                         "O PNCP não retornou itens agora. Usando dados de exemplo para a demo."
