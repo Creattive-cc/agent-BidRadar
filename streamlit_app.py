@@ -30,6 +30,7 @@ os.environ.setdefault("BIDRADAR_ENABLE_CONLICITACAO", "false")
 os.environ.setdefault("BIDRADAR_ENABLE_COMPRASNET", "true")
 os.environ.setdefault("BIDRADAR_LLM_PROVIDER", "heuristic")
 
+import requests
 import pandas as pd
 import streamlit as st
 
@@ -151,6 +152,32 @@ def collect_live(days: int, modalidades: str, limit: int) -> list[ScrapedBid]:
 
 class PNCPUnavailableError(RuntimeError):
     pass
+
+
+@st.cache_data(ttl=60)
+def check_pncp_health() -> tuple[str, int | None]:
+    """Retorna (status, latência_ms). status: 'ok' | 'slow' | 'down'."""
+    import time
+    from datetime import date, timedelta
+
+    url = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
+    today = date.today()
+    params = {
+        "pagina": 1,
+        "tamanhoPagina": 10,
+        "dataInicial": (today - timedelta(days=7)).strftime("%Y%m%d"),
+        "dataFinal": today.strftime("%Y%m%d"),
+        "codigoModalidadeContratacao": 6,
+    }
+    try:
+        t0 = time.monotonic()
+        r = requests.get(url, params=params, timeout=5)
+        ms = int((time.monotonic() - t0) * 1000)
+        if r.status_code >= 500:
+            return "down", None
+        return ("ok" if ms < 3000 else "slow"), ms
+    except Exception:
+        return "down", None
 
 
 _MAX_PAGES_PER_MOD = 12  # teto de segurança: ~600 editais examinados por modalidade
@@ -346,6 +373,15 @@ def main() -> None:  # pragma: no cover (UI)
         settings.llm_provider = (
             "vertex_gemini" if analise.startswith("Gemini") else "heuristic"
         )
+
+        st.divider()
+        pncp_status, pncp_ms = check_pncp_health()
+        if pncp_status == "ok":
+            st.caption(f"🟢 PNCP disponível ({pncp_ms} ms)")
+        elif pncp_status == "slow":
+            st.caption(f"🟡 PNCP lento ({pncp_ms} ms)")
+        else:
+            st.caption("🔴 PNCP indisponível")
 
         st.divider()
         score_min = st.slider("Score mínimo", 0, 100, 0, step=5)
