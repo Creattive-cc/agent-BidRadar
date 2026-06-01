@@ -321,6 +321,7 @@ def main() -> None:  # pragma: no cover (UI)
         dias, modalidades, limite, filtro_ti = 30, "6,8", 30, False
         if fonte == "PNCP ao vivo":
             modalidades = st.text_input("Modalidades PNCP", "6,8")
+            dias = st.slider("Janela de datas (dias)", 7, 60, 30, step=7)
             limite = st.slider("Máx. de editais", 5, 60, 25, step=5)
             filtro_ti = st.checkbox(
                 "Só editais de TI/relevantes (filtro pré-IA)",
@@ -353,7 +354,7 @@ def main() -> None:  # pragma: no cover (UI)
                 with st.spinner(spinner_msg):
                     raw = collect_live_fast(
                         modalidades,
-                        dias=7,
+                        dias=dias,
                         limit=limite,
                         palavras_chave=KEYWORDS_TI if filtro_ti else None,
                     )
