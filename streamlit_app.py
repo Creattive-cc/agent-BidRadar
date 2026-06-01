@@ -149,6 +149,10 @@ def collect_live(days: int, modalidades: str, limit: int) -> list[ScrapedBid]:
     return bids[:limit] if limit else bids
 
 
+class PNCPUnavailableError(RuntimeError):
+    pass
+
+
 _MAX_PAGES_PER_MOD = 12  # teto de segurança: ~600 editais examinados por modalidade
 
 
@@ -194,6 +198,7 @@ def collect_live_fast(
 
     bids: list[ScrapedBid] = []
     seen: set[str] = set()
+    any_request_failed = False
 
     for codigo in mods:
         if len(bids) >= limit:
@@ -209,6 +214,7 @@ def collect_live_fast(
             }
             payload = _fetch_pncp_json(PNCP_PUBLICACAO_URL, params)
             if not payload:
+                any_request_failed = True
                 break
             items = _items_from_payload(payload)
             if not items:
@@ -237,6 +243,8 @@ def collect_live_fast(
             page += 1
             time.sleep(_INTER_PAGE_DELAY)
 
+    if not bids and any_request_failed:
+        raise PNCPUnavailableError("PNCP indisponível (timeout ou erro 5xx)")
     return bids
 
 
@@ -368,6 +376,13 @@ def main() -> None:  # pragma: no cover (UI)
             with st.spinner("Analisando aderência ao perfil da empresa…"):
                 st.session_state["bids"] = analyze_bids(raw, profile)
             st.session_state["origem"] = fonte
+        except PNCPUnavailableError:
+            st.warning(
+                "⚠️ O PNCP está temporariamente indisponível (timeout/erro no servidor deles). "
+                "Usando dados de exemplo para a demo."
+            )
+            st.session_state["bids"] = analyze_bids(SEED_BIDS, profile)
+            st.session_state["origem"] = "Dados de exemplo (PNCP indisponível)"
         except Exception as exc:  # noqa: BLE001
             st.error(f"Falha na coleta ao vivo ({exc}). Mostrando dados de exemplo.")
             st.session_state["bids"] = analyze_bids(SEED_BIDS, profile)
