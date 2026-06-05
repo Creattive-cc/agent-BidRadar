@@ -45,9 +45,9 @@ steps:
       - '--set-env-vars=BIDRADAR_JWT_SECRET=${_JWT_SECRET},BIDRADAR_ADMIN_EMAIL=${_ADMIN_EMAIL},BIDRADAR_ADMIN_PASSWORD=${_ADMIN_PASSWORD},BIDRADAR_LLM_PROVIDER=${_LLM_PROVIDER},BIDRADAR_VERTEX_PROJECT_ID=$PROJECT_ID,BIDRADAR_GCP_PROJECT_ID=$PROJECT_ID'
 
 substitutions:
-  _JWT_SECRET: 'change-me-set-in-cloud-build-trigger'
+  _JWT_SECRET: 'bidradar-dev-secret-2026-trocar-em-producao'
   _ADMIN_EMAIL: 'admin@bidradar.local'
-  _ADMIN_PASSWORD: 'change-me-on-first-login'
+  _ADMIN_PASSWORD: 'BidRadar2026!'
   _LLM_PROVIDER: 'heuristic'
 
 options:
