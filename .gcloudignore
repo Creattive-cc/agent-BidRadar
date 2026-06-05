@@ -20,3 +20,4 @@ streamlit_app.py
 Dockerfile.demo
 cloudbuild-demo.yaml
 deploy-demo.sh
+docs/

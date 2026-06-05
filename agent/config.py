@@ -43,10 +43,18 @@ class Settings(BaseModel):
     jwt_expire_minutes: int = int(os.getenv("BIDRADAR_JWT_EXPIRE_MINUTES", "480"))
     admin_email: str = os.getenv("BIDRADAR_ADMIN_EMAIL", "admin@bidradar.local")
     admin_password: str = os.getenv("BIDRADAR_ADMIN_PASSWORD", "admin123")
+    # DATABASE_URL sobrescreve db_path quando definido (ex: Cloud SQL Postgres)
+    database_url: str = os.getenv("DATABASE_URL", "")
 
     @property
     def db_file(self) -> Path:
         return Path(self.db_path)
+
+    @property
+    def effective_database_url(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return f"sqlite:///{self.db_path}"
 
     @property
     def google_credentials_file(self) -> Path:

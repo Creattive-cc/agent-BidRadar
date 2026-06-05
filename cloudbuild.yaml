@@ -42,13 +42,15 @@ steps:
       - '--min-instances=0'
       - '--max-instances=3'
       - '--allow-unauthenticated'
-      - '--set-env-vars=BIDRADAR_JWT_SECRET=${_JWT_SECRET},BIDRADAR_ADMIN_EMAIL=${_ADMIN_EMAIL},BIDRADAR_ADMIN_PASSWORD=${_ADMIN_PASSWORD},BIDRADAR_LLM_PROVIDER=${_LLM_PROVIDER},BIDRADAR_VERTEX_PROJECT_ID=$PROJECT_ID,BIDRADAR_GCP_PROJECT_ID=$PROJECT_ID'
+      - '--add-cloudsql-instances=creattive-licitacoes-dev:us-central1:bidradar-db'
+      - '--set-env-vars=BIDRADAR_JWT_SECRET=${_JWT_SECRET},BIDRADAR_ADMIN_EMAIL=${_ADMIN_EMAIL},BIDRADAR_ADMIN_PASSWORD=${_ADMIN_PASSWORD},BIDRADAR_LLM_PROVIDER=${_LLM_PROVIDER},BIDRADAR_VERTEX_PROJECT_ID=$PROJECT_ID,BIDRADAR_GCP_PROJECT_ID=$PROJECT_ID,DATABASE_URL=${_DATABASE_URL}'
 
 substitutions:
   _JWT_SECRET: 'bidradar-dev-secret-2026-trocar-em-producao'
   _ADMIN_EMAIL: 'admin@bidradar.local'
   _ADMIN_PASSWORD: 'BidRadar2026!'
   _LLM_PROVIDER: 'heuristic'
+  _DATABASE_URL: 'postgresql+psycopg2://bidradar_user:b2198d85ee6c92dc2919837c5754d0f7@/bidradar?host=/cloudsql/creattive-licitacoes-dev:us-central1:bidradar-db'
 
 options:
   logging: CLOUD_LOGGING_ONLY

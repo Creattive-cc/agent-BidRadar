@@ -73,7 +73,16 @@ class AgentLog(Base):
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
-engine = create_engine(f"sqlite:///{settings.db_file}", future=True)
+_connect_args = {}
+if not settings.database_url:
+    # SQLite precisa de check_same_thread=False para uso em threads (FastAPI)
+    _connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    settings.effective_database_url,
+    future=True,
+    connect_args=_connect_args,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
