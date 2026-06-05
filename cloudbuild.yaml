@@ -1,5 +1,5 @@
 steps:
-  # 1. Configurar autenticação Docker no Artifact Registry
+  # 1. Autenticação Docker → Artifact Registry
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -8,7 +8,7 @@ steps:
       - 'us-central1-docker.pkg.dev'
       - '--quiet'
 
-  # 2. Build da imagem Docker
+  # 2. Build da imagem (inclui React + FastAPI)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -18,7 +18,7 @@ steps:
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:latest'
       - '.'
 
-  # 3. Push da imagem para o Artifact Registry
+  # 3. Push
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
@@ -41,11 +41,14 @@ steps:
       - '--cpu=1'
       - '--min-instances=0'
       - '--max-instances=3'
-      - '--no-allow-unauthenticated'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=BIDRADAR_JWT_SECRET=${_JWT_SECRET},BIDRADAR_ADMIN_EMAIL=${_ADMIN_EMAIL},BIDRADAR_ADMIN_PASSWORD=${_ADMIN_PASSWORD},BIDRADAR_LLM_PROVIDER=${_LLM_PROVIDER},BIDRADAR_VERTEX_PROJECT_ID=$PROJECT_ID,BIDRADAR_GCP_PROJECT_ID=$PROJECT_ID'
 
 substitutions:
-  _SERVICE_NAME: bidradar-api
-  _REGION: us-central1
+  _JWT_SECRET: 'change-me-set-in-cloud-build-trigger'
+  _ADMIN_EMAIL: 'admin@bidradar.local'
+  _ADMIN_PASSWORD: 'change-me-on-first-login'
+  _LLM_PROVIDER: 'heuristic'
 
 options:
   logging: CLOUD_LOGGING_ONLY

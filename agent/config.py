@@ -36,6 +36,13 @@ class Settings(BaseModel):
     bigquery_dataset: str = os.getenv("BIDRADAR_BQ_DATASET", "licitacoes")
     bigquery_table: str = os.getenv("BIDRADAR_BQ_TABLE", "editais")
     pubsub_topic: str = os.getenv("BIDRADAR_PUBSUB_TOPIC", "coleta-editais")
+    jwt_secret_key: str = os.getenv(
+        "BIDRADAR_JWT_SECRET", "change-me-in-production-very-long-random-string"
+    )
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = int(os.getenv("BIDRADAR_JWT_EXPIRE_MINUTES", "480"))
+    admin_email: str = os.getenv("BIDRADAR_ADMIN_EMAIL", "admin@bidradar.local")
+    admin_password: str = os.getenv("BIDRADAR_ADMIN_PASSWORD", "admin123")
 
     @property
     def db_file(self) -> Path:

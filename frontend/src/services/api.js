@@ -1,35 +1,76 @@
-const API_BASE = "http://localhost:8000";
+// In dev Vite proxies /api → FastAPI (strips /api prefix).
+// In production same origin, no prefix needed.
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
-export async function fetchBids() {
-  const res = await fetch(`${API_BASE}/licitacoes`);
-  if (!res.ok) throw new Error("Falha ao carregar licitacoes");
+function getToken() {
+  return localStorage.getItem("br_token");
+}
+
+function authHeaders() {
+  const t = getToken();
+  return t
+    ? { Authorization: `Bearer ${t}`, "Content-Type": "application/json" }
+    : { "Content-Type": "application/json" };
+}
+
+async function request(path, options = {}, { noRedirectOn401 = false } = {}) {
+  const res = await fetch(`${API_BASE}${path}`, { headers: authHeaders(), ...options });
+  if (res.status === 401 && !noRedirectOn401) {
+    localStorage.removeItem("br_token");
+    window.location.href = "/login";
+    return;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Erro desconhecido");
+  }
+  if (res.status === 204) return null;
   return res.json();
 }
 
-export async function runAgentOnce() {
-  const res = await fetch(`${API_BASE}/agent/run-once`, { method: "POST" });
-  if (!res.ok) throw new Error("Falha ao executar agente");
-  return res.json();
-}
+// Auth
+export const apiLogin = (email, password) =>
+  request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }, { noRedirectOn401: true });
 
-export async function fetchProfileFiles() {
-  const res = await fetch(`${API_BASE}/company-profile/files`);
-  if (!res.ok) throw new Error("Falha ao listar arquivos de perfil");
-  return res.json();
-}
+// Stats
+export const fetchStats = () => request("/stats");
 
-export async function fetchProfileContent(filename) {
-  const res = await fetch(`${API_BASE}/company-profile/${filename}`);
-  if (!res.ok) throw new Error("Falha ao carregar arquivo de perfil");
-  return res.json();
-}
+// Licitações
+export const fetchBids = () => request("/licitacoes");
+export const fetchBid = (id) => request(`/licitacoes/${id}`);
 
-export async function saveProfileContent(filename, content) {
-  const res = await fetch(`${API_BASE}/company-profile/${filename}`, {
+// Logs
+export const fetchLogs = (limit = 50) => request(`/logs?limit=${limit}`);
+
+// Filters
+export const fetchFilters = () => request("/filters");
+export const saveFilters = (data) =>
+  request("/filters", { method: "PUT", body: JSON.stringify(data) });
+
+// Products
+export const fetchProducts = () => request("/products");
+export const createProduct = (data) =>
+  request("/products", { method: "POST", body: JSON.stringify(data) });
+export const updateProduct = (id, data) =>
+  request(`/products/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteProduct = (id) => request(`/products/${id}`, { method: "DELETE" });
+
+// Admin users
+export const fetchUsers = () => request("/admin/users");
+export const createUser = (data) =>
+  request("/admin/users", { method: "POST", body: JSON.stringify(data) });
+export const updateUser = (id, data) =>
+  request(`/admin/users/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteUser = (id) => request(`/admin/users/${id}`, { method: "DELETE" });
+
+// Agent
+export const runAgentOnce = () => request("/agent/run-once", { method: "POST" });
+
+// Company profile (legacy)
+export const fetchProfileFiles = () => request("/company-profile/files");
+export const fetchProfileContent = (filename) => request(`/company-profile/${filename}`);
+export const saveProfileContent = (filename, content) =>
+  request(`/company-profile/${filename}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
   });
-  if (!res.ok) throw new Error("Falha ao salvar arquivo de perfil");
-  return res.json();
-}
