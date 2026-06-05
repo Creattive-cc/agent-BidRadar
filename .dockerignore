@@ -10,6 +10,7 @@ __pycache__
 .gitignore
 logs/
 data/
-frontend/
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
 service_account.json
-*.md
