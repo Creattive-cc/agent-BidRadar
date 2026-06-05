@@ -13,7 +13,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$COMMIT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$BUILD_ID'
       - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:latest'
       - '.'
@@ -32,7 +32,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'bidradar-api'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$COMMIT_SHA'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$BUILD_ID'
       - '--platform=managed'
       - '--region=us-central1'
       - '--service-account=agente-licitacoes@$PROJECT_ID.iam.gserviceaccount.com'
@@ -54,5 +54,5 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:$BUILD_ID'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/bidradar/api:latest'
