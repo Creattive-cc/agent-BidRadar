@@ -17,12 +17,13 @@ class Settings(BaseModel):
     google_application_credentials: str = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", "service_account.json"
     )
+    enable_pncp: bool = os.getenv("BIDRADAR_ENABLE_PNCP", "true").lower() == "true"
     enable_comprasnet: bool = (
-        os.getenv("BIDRADAR_ENABLE_COMPRASNET", "true").lower() == "true"
+        os.getenv("BIDRADAR_ENABLE_COMPRASNET", "false").lower() == "true"
     )
-    enable_bll: bool = os.getenv("BIDRADAR_ENABLE_BLL", "true").lower() == "true"
+    enable_bll: bool = os.getenv("BIDRADAR_ENABLE_BLL", "false").lower() == "true"
     enable_conlicitacao: bool = (
-        os.getenv("BIDRADAR_ENABLE_CONLICITACAO", "true").lower() == "true"
+        os.getenv("BIDRADAR_ENABLE_CONLICITACAO", "false").lower() == "true"
     )
     # Codigos de modalidade PNCP (separados por virgula). Padrao: principais da Lei 14.133.
     pncp_modalidades: str = os.getenv(

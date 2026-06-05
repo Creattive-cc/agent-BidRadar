@@ -117,19 +117,29 @@ Licitacao:
 - origem: {bid.source_site}
 """
 
-    # Desliga thinking para reduzir latência (~7s → <3s no Flash)
+    # Desliga thinking para reduzir latência (~7s → <3s) — só funciona no Flash
+    _is_flash = "flash" in settings.vertex_model.lower()
     try:
-        _thinking = gtypes.ThinkingConfig(thinking_budget=0)
-        _gen_config = gtypes.GenerateContentConfig(
-            temperature=0,
-            max_output_tokens=2048,
-            response_mime_type="application/json",
-            response_schema=_BidScoreSchema,
-            thinking_config=_thinking,
-        )
-        _fallback_config = gtypes.GenerateContentConfig(
-            temperature=0, max_output_tokens=2048, thinking_config=_thinking
-        )
+        if _is_flash:
+            _thinking = gtypes.ThinkingConfig(thinking_budget=0)
+            _gen_config = gtypes.GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=_BidScoreSchema,
+                thinking_config=_thinking,
+            )
+            _fallback_config = gtypes.GenerateContentConfig(
+                temperature=0, max_output_tokens=2048, thinking_config=_thinking
+            )
+        else:
+            _gen_config = gtypes.GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=_BidScoreSchema,
+            )
+            _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=2048)
     except (AttributeError, TypeError):
         _gen_config = gtypes.GenerateContentConfig(
             temperature=0,
