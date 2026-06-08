@@ -1,36 +1,39 @@
-# ---- Build stage ----
-FROM python:3.12-slim AS builder
+# ── Stage 1: React build ──────────────────────────────────────────────────────
+FROM node:20-slim AS frontend-builder
 
-# Instalar UV
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY frontend/ ./
+# VITE_API_BASE é vazio em produção: FastAPI e SPA no mesmo origin
+RUN npm run build
+
+# ── Stage 2: Python deps ──────────────────────────────────────────────────────
+FROM python:3.12-slim AS python-builder
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
-
-# Copiar arquivos de dependências
 COPY pyproject.toml uv.lock ./
-
-# Instalar dependências sem o projeto em si
 RUN uv sync --frozen --no-install-project --no-dev
 
-# ---- Runtime stage ----
+# ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copiar o virtualenv do builder
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=python-builder /app/.venv /app/.venv
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Copiar o código
 COPY agent/ ./agent/
 COPY api/ ./api/
+COPY company_profile/ ./company_profile/
 
-# Variáveis de ambiente
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8080
+    PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8080
 
-# Rodar a API FastAPI com uvicorn
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

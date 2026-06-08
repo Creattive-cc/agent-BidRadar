@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import create_engine, String, Float, DateTime, Integer, Text
+from sqlalchemy import Boolean, create_engine, String, Float, DateTime, Integer, Text
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, sessionmaker
 from agent.config import settings
 
@@ -23,7 +23,66 @@ class Bid(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
-engine = create_engine(f"sqlite:///{settings.db_file}", future=True)
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(50), default="operator")  # admin | operator
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class FilterConfig(Base):
+    __tablename__ = "filter_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    exclusion_terms: Mapped[str] = mapped_column(Text, default="[]")  # JSON array
+    min_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_capital_social_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    enable_exclusion_terms: Mapped[bool] = mapped_column(Boolean, default=True)
+    enable_min_value: Mapped[bool] = mapped_column(Boolean, default=True)
+    enable_capital_social: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text, default="")
+    cnae_codes: Mapped[str] = mapped_column(Text, default="[]")  # JSON array
+    tags: Mapped[str] = mapped_column(Text, default="[]")  # JSON array
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AgentLog(Base):
+    __tablename__ = "agent_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # detection | ai_processing | high_match | human_review | auto_discard
+    event_type: Mapped[str] = mapped_column(String(50))
+    title: Mapped[str] = mapped_column(String(500))
+    product: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bid_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bid_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
+_connect_args = {}
+if not settings.database_url:
+    # SQLite precisa de check_same_thread=False para uso em threads (FastAPI)
+    _connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    settings.effective_database_url,
+    future=True,
+    connect_args=_connect_args,
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 

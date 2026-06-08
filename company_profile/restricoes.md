@@ -1,8 +1,12 @@
-# Restricoes (Exemplo)
+# Restrições / Áreas fora de escopo
 
-A empresa **nao atende**:
+A Creattive NÃO atua em:
+- Obras civis, construção e engenharia
+- Fornecimento de merenda, alimentos e gêneros alimentícios
+- Transporte escolar e locação de veículos
+- Medicamentos, insumos hospitalares e material médico
+- Mobiliário, material de escritório e bens de consumo
 
-- obras civis e infraestrutura fisica
-- fornecimento de medicamentos e materiais hospitalares
-- merenda escolar e generos alimenticios
-- transporte escolar
+Foco da empresa: tecnologia da informação — licenciamento e implementação
+Google Workspace, Google Cloud (GCP), Chrome Enterprise, cibersegurança,
+inteligência artificial, análise de dados/BI e software corporativo.

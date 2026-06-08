@@ -8,7 +8,7 @@ from agent.config import settings
 from agent.downloader import download_pending_pdfs
 from agent.logging_utils import get_logger
 from agent.models import Bid, SessionLocal, init_db
-from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao
+from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao, scrape_pncp
 
 logger = get_logger("bidradar.runner")
 
@@ -25,6 +25,8 @@ def run_once() -> dict[str, int]:
     saved_count = 0
 
     scrapers: list[tuple[str, Callable[[], list]]] = []
+    if settings.enable_pncp:
+        scrapers.append(("PNCP", scrape_pncp))
     if settings.enable_comprasnet:
         scrapers.append(("ComprasNet", scrape_comprasnet))
     if settings.enable_bll:
@@ -44,7 +46,18 @@ def run_once() -> dict[str, int]:
             logger.exception("Falha no scraper %s: %s", name, exc)
 
     with SessionLocal() as session:
+        # Dedup: busca todas as URLs já existentes em batch
+        all_urls = [b.url for b in all_bids if b.url]
+        existing_urls: set[str] = set()
+        if all_urls:
+            existing_urls = {
+                row[0]
+                for row in session.query(Bid.url).filter(Bid.url.in_(all_urls)).all()
+            }
+
         for bid in all_bids:
+            if bid.url in existing_urls:
+                continue
             analyzed = score_bid_with_profile(bid, profile)
             row = Bid(
                 title=analyzed.title,
@@ -59,6 +72,7 @@ def run_once() -> dict[str, int]:
                 justification=analyzed.justification,
             )
             session.add(row)
+            existing_urls.add(bid.url)
             saved_count += 1
         session.commit()
 

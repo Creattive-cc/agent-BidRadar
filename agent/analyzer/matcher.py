@@ -2,8 +2,8 @@ import json
 import os
 import re
 import time
+from typing import TypedDict
 
-from pydantic import BaseModel, Field
 
 from agent.config import settings
 from agent.logging_utils import get_logger
@@ -66,39 +66,44 @@ def _parse_score_json_text(raw: str) -> tuple[float, str]:
 
 
 def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[float, str]:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-
-    class BidScoreOutput(BaseModel):
-        score: float = Field(ge=0, le=100)
-        justification: str = Field(min_length=3)
-
-    credentials_file = settings.google_credentials_file
-    if not credentials_file.exists():
-        raise FileNotFoundError(
-            f"Arquivo de credenciais nao encontrado: {credentials_file.as_posix()}"
-        )
-
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_file.resolve())
-    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+    from google import genai as gai
+    from google.genai import types as gtypes
 
     if not settings.vertex_project_id:
         raise ValueError("Defina BIDRADAR_VERTEX_PROJECT_ID no .env para usar Vertex AI.")
-    os.environ["GOOGLE_CLOUD_PROJECT"] = settings.vertex_project_id
-    os.environ["GOOGLE_CLOUD_LOCATION"] = settings.vertex_location
 
-    llm = ChatGoogleGenerativeAI(
-        model=settings.vertex_model,
-        temperature=0,
-        max_tokens=512,
-    )
-    structured_llm = llm.with_structured_output(BidScoreOutput)
+    # Credenciais: service_account.json (dev local) ou ADC (Cloud Run / GKE).
+    credentials = None
+    credentials_file = settings.google_credentials_file
+    if credentials_file.exists():
+        from google.oauth2 import service_account as _sa
+        credentials = _sa.Credentials.from_service_account_file(
+            str(credentials_file.resolve()),
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        logger.debug("Vertex AI: autenticando via %s", credentials_file)
+    else:
+        logger.debug("Vertex AI: service_account.json ausente — usando ADC")
+
+    client_kwargs: dict = {
+        "vertexai": True,
+        "project": settings.vertex_project_id,
+        "location": settings.vertex_location,
+    }
+    if credentials is not None:
+        client_kwargs["credentials"] = credentials
+    client = gai.Client(**client_kwargs)
+
+    class _BidScoreSchema(TypedDict):
+        score: float
+        justification: str
 
     profile_text = "\n\n".join(f"## {name}\n{content}" for name, content in profile_docs.items())
     base_prompt = f"""Voce e um analista de licitacoes publicas.
 Avalie aderencia da licitacao ao perfil da empresa.
 Regras:
 - score: numero decimal de 0 a 100
-- justification: texto curto em portugues (minimo 10 caracteres)
+- justification: texto detalhado em portugues (minimo 20 caracteres) explicando o score
 
 Perfil da empresa:
 {profile_text}
@@ -112,39 +117,71 @@ Licitacao:
 - origem: {bid.source_site}
 """
 
+    # Desliga thinking para reduzir latência (~7s → <3s) — só funciona no Flash
+    _is_flash = "flash" in settings.vertex_model.lower()
+    try:
+        if _is_flash:
+            _thinking = gtypes.ThinkingConfig(thinking_budget=0)
+            _gen_config = gtypes.GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=_BidScoreSchema,
+                thinking_config=_thinking,
+            )
+            _fallback_config = gtypes.GenerateContentConfig(
+                temperature=0, max_output_tokens=2048, thinking_config=_thinking
+            )
+        else:
+            _gen_config = gtypes.GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+                response_schema=_BidScoreSchema,
+            )
+            _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=2048)
+    except (AttributeError, TypeError):
+        _gen_config = gtypes.GenerateContentConfig(
+            temperature=0,
+            max_output_tokens=2048,
+            response_mime_type="application/json",
+            response_schema=_BidScoreSchema,
+        )
+        _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=2048)
+
     last_err: Exception | None = None
     for attempt in range(1, LLM_MAX_ATTEMPTS + 1):
         try:
-            suffix = (
-                "\n\nObrigatorio: preencha score e justification. Nao retorne objeto vazio."
-                if attempt > 1
-                else ""
+            suffix = "\n\nPreencha score E justification. Nao retorne vazio." if attempt > 1 else ""
+            response = client.models.generate_content(
+                model=settings.vertex_model,
+                contents=base_prompt + suffix,
+                config=_gen_config,
             )
-            response = structured_llm.invoke(base_prompt + suffix)
-            if response is None:
-                raise ValueError("Resposta estruturada vazia (None).")
-            if not isinstance(response, BidScoreOutput):
-                raise ValueError(f"Tipo de resposta inesperado: {type(response)}")
-            score = float(response.score)
-            justification = str(response.justification).strip()
+            data = json.loads(response.text)
+            score = float(data["score"])
+            justification = str(data["justification"]).strip()
             if len(justification) < 3:
                 raise ValueError("Justificativa muito curta.")
             return max(0.0, min(100.0, score)), justification
         except Exception as exc:
             last_err = exc
-            logger.warning("Gemini structured tentativa %s/%s falhou: %s", attempt, LLM_MAX_ATTEMPTS, exc)
+            logger.warning("Gemini tentativa %s/%s falhou: %s", attempt, LLM_MAX_ATTEMPTS, exc)
 
+    # Fallback: pede JSON como texto simples (sem response_schema)
     json_tail = (
-        '\n\nResponda APENAS uma linha JSON valida, sem markdown, neste formato exato:\n'
-        '{"score": <0-100>, "justification": "<texto>"}'
+        '\n\nResponda APENAS uma linha JSON valida, sem markdown:\n'
+        '{"score": <0-100>, "justification": "<texto em portugues>"}'
     )
     try:
-        raw = llm.invoke(base_prompt + json_tail).content
-        if isinstance(raw, list):
-            raw = "".join(str(p) for p in raw)
-        return _parse_score_json_text(str(raw))
+        response = client.models.generate_content(
+            model=settings.vertex_model,
+            contents=base_prompt + json_tail,
+            config=_fallback_config,
+        )
+        return _parse_score_json_text(response.text)
     except Exception as exc:
-        logger.warning("Gemini fallback JSON-text falhou: %s (ultimo structured: %s)", exc, last_err)
+        logger.warning("Gemini fallback JSON-text falhou: %s (ultimo: %s)", exc, last_err)
         raise last_err or exc
 
 

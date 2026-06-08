@@ -17,12 +17,13 @@ class Settings(BaseModel):
     google_application_credentials: str = os.getenv(
         "GOOGLE_APPLICATION_CREDENTIALS", "service_account.json"
     )
+    enable_pncp: bool = os.getenv("BIDRADAR_ENABLE_PNCP", "true").lower() == "true"
     enable_comprasnet: bool = (
-        os.getenv("BIDRADAR_ENABLE_COMPRASNET", "true").lower() == "true"
+        os.getenv("BIDRADAR_ENABLE_COMPRASNET", "false").lower() == "true"
     )
-    enable_bll: bool = os.getenv("BIDRADAR_ENABLE_BLL", "true").lower() == "true"
+    enable_bll: bool = os.getenv("BIDRADAR_ENABLE_BLL", "false").lower() == "true"
     enable_conlicitacao: bool = (
-        os.getenv("BIDRADAR_ENABLE_CONLICITACAO", "true").lower() == "true"
+        os.getenv("BIDRADAR_ENABLE_CONLICITACAO", "false").lower() == "true"
     )
     # Codigos de modalidade PNCP (separados por virgula). Padrao: principais da Lei 14.133.
     pncp_modalidades: str = os.getenv(
@@ -36,10 +37,25 @@ class Settings(BaseModel):
     bigquery_dataset: str = os.getenv("BIDRADAR_BQ_DATASET", "licitacoes")
     bigquery_table: str = os.getenv("BIDRADAR_BQ_TABLE", "editais")
     pubsub_topic: str = os.getenv("BIDRADAR_PUBSUB_TOPIC", "coleta-editais")
+    jwt_secret_key: str = os.getenv(
+        "BIDRADAR_JWT_SECRET", "change-me-in-production-very-long-random-string"
+    )
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = int(os.getenv("BIDRADAR_JWT_EXPIRE_MINUTES", "480"))
+    admin_email: str = os.getenv("BIDRADAR_ADMIN_EMAIL", "admin@bidradar.local")
+    admin_password: str = os.getenv("BIDRADAR_ADMIN_PASSWORD", "admin123")
+    # DATABASE_URL sobrescreve db_path quando definido (ex: Cloud SQL Postgres)
+    database_url: str = os.getenv("DATABASE_URL", "")
 
     @property
     def db_file(self) -> Path:
         return Path(self.db_path)
+
+    @property
+    def effective_database_url(self) -> str:
+        if self.database_url:
+            return self.database_url
+        return f"sqlite:///{self.db_path}"
 
     @property
     def google_credentials_file(self) -> Path:
