@@ -532,6 +532,76 @@ def _bid_to_dict(row: Bid) -> dict:
 
 # ── Admin bids ────────────────────────────────────────────────────────────────
 
+_SEED_BIDS = [
+    {
+        "title": "Contratação de plataforma SaaS de gestão escolar para secretaria municipal de educação — módulos de matrícula, frequência e notas",
+        "agency": "Secretaria Municipal de Educação de Campinas",
+        "estimated_value": 480000.0,
+        "deadline": "2026-07-15T14:00:00",
+        "url": "https://pncp.gov.br/app/editais/demo-001",
+        "source_site": "PNCP",
+        "score": 88.0,
+        "justification": "O edital solicita uma plataforma SaaS completa de gestão escolar para rede municipal, com módulos de cadastro de alunos, controle de matrículas, frequência e geração de relatórios — alinhamento direto com o Edux.me Plus. A secretaria municipal de educação é o órgão contratante, público-alvo central do produto. Valor estimado dentro da faixa operada pela empresa. Alta aderência.",
+    },
+    {
+        "title": "Aquisição de programa educacional PaaS com conteúdo didático BNCC para recomposição escolar e recuperação de aprendizagem no ensino fundamental",
+        "agency": "Prefeitura Municipal de Ribeirão Preto — Secretaria de Educação",
+        "estimated_value": 320000.0,
+        "deadline": "2026-07-22T10:00:00",
+        "url": "https://pncp.gov.br/app/editais/demo-002",
+        "source_site": "PNCP",
+        "score": 74.0,
+        "justification": "Edital voltado para plataforma de recomposição de aprendizagem com conteúdo alinhado à BNCC para alunos do ensino fundamental com distorção idade/série. Aderente ao Konectar.me. Não menciona gestão administrativa escolar (Edux.me Plus) nem preparação para SAEB (Projeto SAEB). Match parcial.",
+    },
+    {
+        "title": "Contratação de solução tecnológica para aplicação de simulados SAEB, processamento de cartões-resposta e analytics educacional para rede estadual",
+        "agency": "Secretaria de Estado da Educação de Minas Gerais",
+        "estimated_value": 750000.0,
+        "deadline": "2026-08-01T09:00:00",
+        "url": "https://pncp.gov.br/app/editais/demo-003",
+        "source_site": "PNCP",
+        "score": 67.0,
+        "justification": "O edital trata especificamente de avaliação educacional alinhada ao SAEB com processamento de cartões-resposta e dashboards analíticos — cobertura direta do Projeto SAEB. Valor elevado pode exigir consórcio. Nenhuma menção a gestão escolar ou conteúdo didático, portanto Edux.me Plus e Konectar.me têm baixa relevância aqui.",
+    },
+    {
+        "title": "Contratação de empresa para execução de obras de pavimentação asfáltica em vias urbanas do município",
+        "agency": "Prefeitura Municipal de Sorocaba — Secretaria de Obras",
+        "estimated_value": 1200000.0,
+        "deadline": "2026-07-30T08:00:00",
+        "url": "https://pncp.gov.br/app/editais/demo-004",
+        "source_site": "PNCP",
+        "score": 4.0,
+        "justification": "Edital de obra civil para pavimentação asfáltica. Sem qualquer relação com tecnologia educacional, gestão escolar, plataformas SaaS/PaaS ou avaliações pedagógicas. Nenhum dos produtos da empresa possui aderência a este tipo de contratação.",
+    },
+]
+
+
+@app.post("/admin/bids/seed", status_code=201)
+def seed_bids(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    from datetime import datetime as dt
+    inserted = 0
+    for data in _SEED_BIDS:
+        bid = Bid(
+            title=data["title"],
+            agency=data["agency"],
+            estimated_value=data.get("estimated_value"),
+            deadline=data.get("deadline"),
+            url=data["url"],
+            source_site=data["source_site"],
+            find_time_seconds=0.0,
+            analysis_time_seconds=0.0,
+            score=data["score"],
+            justification=data["justification"],
+            created_at=dt.utcnow(),
+        )
+        db.add(bid)
+        inserted += 1
+    db.commit()
+    return {"inserted": inserted}
+
 
 @app.delete("/admin/bids", status_code=200)
 def delete_all_bids(
