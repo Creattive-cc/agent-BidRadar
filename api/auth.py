@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+import jwt
 from sqlalchemy.orm import Session
 
 from agent.config import settings
@@ -49,7 +49,7 @@ def get_current_user(
         email: str = payload.get("sub")
         if not email:
             raise exc
-    except JWTError:
+    except jwt.PyJWTError:
         raise exc
 
     user = db.query(User).filter(User.email == email, User.is_active == True).first()
