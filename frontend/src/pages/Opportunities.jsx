@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchBids } from "../services/api";
+import { fetchBids, fetchProducts } from "../services/api";
 
 function daysRemaining(deadline) {
   if (!deadline) return null;
@@ -13,50 +13,177 @@ function formatValue(v) {
   return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 }
 
-function ScoreBadge({ score }) {
+function ScoreBadge({ score, onClick, clickable }) {
   const s = Math.round(score);
   const color =
     s >= 75 ? { ring: "ring-green-400", text: "text-green-600", bg: "bg-green-50" }
     : s >= 50 ? { ring: "ring-amber-400", text: "text-amber-600", bg: "bg-amber-50" }
     : { ring: "ring-red-400", text: "text-red-500", bg: "bg-red-50" };
   return (
-    <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-full ring-2 ${color.ring} ${color.bg} flex-shrink-0`}>
+    <div
+      onClick={onClick}
+      title={clickable ? "Ver análise detalhada" : undefined}
+      className={`flex flex-col items-center justify-center w-16 h-16 rounded-full ring-2 ${color.ring} ${color.bg} flex-shrink-0 ${clickable ? "cursor-pointer hover:scale-105 transition-transform" : ""}`}
+    >
       <span className={`text-lg font-bold leading-none ${color.text}`}>{s}%</span>
       <span className={`text-[9px] font-semibold uppercase tracking-wide ${color.text}`}>match</span>
     </div>
   );
 }
 
-function JustificationModal({ bid, onClose }) {
+function computeCoverage(bid, products) {
+  const text = ((bid.title || "") + " " + (bid.agency || "")).toLowerCase();
+  return products.map((p) => {
+    const tags = p.tags || [];
+    const matched = tags.filter((t) => text.includes(t.toLowerCase()));
+    const unmatched = tags.filter((t) => !text.includes(t.toLowerCase()));
+    return { ...p, matched, unmatched, hasMatch: matched.length > 0 };
+  });
+}
+
+function CoverageSection({ bid, products }) {
+  if (!products || products.length === 0) return null;
+  const coverage = computeCoverage(bid, products);
+  const covered = coverage.filter((p) => p.hasMatch);
+  const notCovered = coverage.filter((p) => !p.hasMatch);
+
+  return (
+    <div className="mt-5 pt-5 border-t border-gray-100">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+        Cobertura por Produto
+      </p>
+
+      {covered.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">
+              O que cobrimos
+            </span>
+          </div>
+          <div className="space-y-2">
+            {covered.map((p) => (
+              <div key={p.id} className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-green-900">{p.name}</span>
+                  <span className="text-[10px] text-green-600 font-medium">
+                    {p.matched.length}/{p.tags.length} tag{p.tags.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {p.matched.map((t) => (
+                    <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-200 text-green-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                      {t}
+                    </span>
+                  ))}
+                  {p.unmatched.map((t) => (
+                    <span key={t} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-green-100 text-green-500 opacity-60">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {notCovered.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0" />
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+              O que não cobrimos
+            </span>
+          </div>
+          <div className="space-y-2">
+            {notCovered.map((p) => (
+              <div key={p.id} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-gray-500">{p.name}</span>
+                  <span className="text-[10px] text-gray-400 font-medium">nenhuma tag encontrada</span>
+                </div>
+                {p.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.tags.map((t) => (
+                      <span key={t} className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-200 text-gray-400">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400 italic">Sem tags configuradas</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 mt-3 pt-2 border-t border-gray-100">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />
+          <span className="text-[10px] text-gray-400">Tag encontrada no edital</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" />
+          <span className="text-[10px] text-gray-400">Tag não encontrada</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JustificationModal({ bid, products, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Resumo da IA</p>
-            <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{bid.title}</h3>
+      <div
+        className="bg-white rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="pr-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Resumo da IA</p>
+              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{bid.title}</h3>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-4">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex items-center gap-2 mb-4">
-          <ScoreBadge score={bid.score} />
-          <div>
-            <p className="text-xs text-gray-500">{bid.agency}</p>
-            {bid.estimated_value && (
-              <p className="text-sm font-semibold text-gray-800">{formatValue(bid.estimated_value)}</p>
-            )}
+
+          <div className="flex items-center gap-3 mb-4">
+            <ScoreBadge score={bid.score} />
+            <div>
+              <p className="text-xs text-gray-500">{bid.agency}</p>
+              {bid.estimated_value && (
+                <p className="text-sm font-semibold text-gray-800">{formatValue(bid.estimated_value)}</p>
+              )}
+            </div>
           </div>
-        </div>
-        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{bid.justification}</p>
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <a href={bid.url} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-violet-600 hover:underline">
-            Abrir edital original →
-          </a>
+
+          {bid.justification ? (
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Análise</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{bid.justification}</p>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl px-4 py-3">
+              <p className="text-sm text-gray-400 italic">Análise da IA não disponível para este edital.</p>
+            </div>
+          )}
+
+          <CoverageSection bid={bid} products={products} />
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <a href={bid.url} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-violet-600 hover:underline">
+              Abrir edital original →
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -71,6 +198,7 @@ const FILTERS = [
 
 export default function Opportunities() {
   const [bids, setBids] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState(new Set());
   const [selected, setSelected] = useState(null);
@@ -80,6 +208,7 @@ export default function Opportunities() {
       .then(setBids)
       .catch(console.error)
       .finally(() => setLoading(false));
+    fetchProducts().then(setProducts).catch(console.error);
   }, []);
 
   function toggleFilter(id) {
@@ -99,13 +228,11 @@ export default function Opportunities() {
 
   return (
     <div className="p-8">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Oportunidades Identificadas</h1>
         <p className="text-sm text-gray-500 mt-0.5">Analise os editais com maior compatibilidade com seus produtos.</p>
       </div>
 
-      {/* Filter chips */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {FILTERS.map((f) => (
           <button
@@ -128,7 +255,6 @@ export default function Opportunities() {
         <span className="ml-auto text-xs text-gray-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
-      {/* List */}
       {loading ? (
         <p className="text-sm text-gray-400 text-center py-12">Carregando oportunidades...</p>
       ) : filtered.length === 0 ? (
@@ -140,7 +266,7 @@ export default function Opportunities() {
             const urgent = days !== null && days <= 5;
             return (
               <div key={bid.id} className="bg-white border border-gray-100 rounded-xl p-5 flex items-start gap-4">
-                <ScoreBadge score={bid.score} />
+                <ScoreBadge score={bid.score} clickable onClick={() => setSelected(bid)} />
 
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-gray-900">{bid.title}</h3>
@@ -196,7 +322,13 @@ export default function Opportunities() {
         </div>
       )}
 
-      {selected && <JustificationModal bid={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <JustificationModal
+          bid={selected}
+          products={products}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

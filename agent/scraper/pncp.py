@@ -15,7 +15,7 @@ from agent.schemas import ScrapedBid
 logger = get_logger("bidradar.scraper.pncp")
 
 PNCP_PUBLICACAO_URL = "https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao"
-_PAGE_SIZE = max(50, 10)  # API PNCP exige tamanhoPagina >= 10
+_PAGE_SIZE = 500  # máximo permitido pela API PNCP
 _INTER_PAGE_DELAY = 0.4  # segundos entre requisicoes de pagina
 _INTER_MODALIDADE_DELAY = 1.0  # segundos entre modalidades
 
