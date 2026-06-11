@@ -530,6 +530,19 @@ def _bid_to_dict(row: Bid) -> dict:
     }
 
 
+# ── Admin bids ────────────────────────────────────────────────────────────────
+
+
+@app.delete("/admin/bids", status_code=200)
+def delete_all_bids(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    count = db.query(Bid).delete()
+    db.commit()
+    return {"deleted": count}
+
+
 # ── Agent ─────────────────────────────────────────────────────────────────────
 
 
