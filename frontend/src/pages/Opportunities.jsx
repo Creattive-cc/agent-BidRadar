@@ -150,11 +150,8 @@ function JustificationModal({ bid, products, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="pr-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Resumo da IA</p>
-              <h3 className="text-sm font-semibold text-gray-900 line-clamp-2">{bid.title}</h3>
-            </div>
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 pr-4 line-clamp-2">{bid.title}</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -172,9 +169,16 @@ function JustificationModal({ bid, products, onClose }) {
             </div>
           </div>
 
+          {bid.resumo && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-3">
+              <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-wide mb-1.5">Resumo da IA</p>
+              <p className="text-sm text-blue-900 leading-relaxed">{bid.resumo}</p>
+            </div>
+          )}
+
           {bid.justification ? (
             <div className="bg-gray-50 rounded-xl px-4 py-3">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Análise</p>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Análise Detalhada</p>
               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{bid.justification}</p>
             </div>
           ) : (

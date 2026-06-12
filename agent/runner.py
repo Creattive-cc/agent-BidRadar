@@ -70,6 +70,7 @@ def run_once() -> dict[str, int]:
                 analysis_time_seconds=analyzed.analysis_time_seconds,
                 score=analyzed.score,
                 justification=analyzed.justification,
+                resumo=analyzed.resumo,
             )
             session.add(row)
             existing_urls.add(bid.url)

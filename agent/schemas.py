@@ -15,6 +15,7 @@ class AnalyzedBid(ScrapedBid):
     analysis_time_seconds: float
     score: float
     justification: str
+    resumo: str | None = None
 
 
 class ChecklistItem(BaseModel):

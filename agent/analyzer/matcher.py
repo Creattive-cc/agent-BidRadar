@@ -14,7 +14,7 @@ logger = get_logger("bidradar.analyzer")
 LLM_MAX_ATTEMPTS = 3
 
 
-def _heuristic_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[float, str]:
+def _heuristic_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[float, str, None]:
     haystack = "\n".join(profile_docs.values()).lower()
     title = bid.title.lower()
 
@@ -40,7 +40,7 @@ def _heuristic_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[flo
     else:
         rationale = "Baixa aderencia: pouco alinhamento com as areas de atuacao e/ou possiveis restricoes."
 
-    return score, rationale
+    return score, rationale, None
 
 
 def _parse_score_json_text(raw: str) -> tuple[float, str]:
@@ -96,19 +96,37 @@ def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple
 
     class _BidScoreSchema(TypedDict):
         score: float
+        resumo: str
         justification: str
 
     profile_text = "\n\n".join(f"## {name}\n{content}" for name, content in profile_docs.items())
-    base_prompt = f"""Voce e um analista de licitacoes publicas.
-Avalie aderencia da licitacao ao perfil da empresa.
-Regras:
-- score: numero decimal de 0 a 100
-- justification: texto detalhado em portugues (minimo 20 caracteres) explicando o score
+    base_prompt = f"""Voce e um analista senior de licitacoes publicas avaliando oportunidades para uma empresa de tecnologia educacional.
+
+Retorne um JSON com tres campos:
+
+1. "score" (0-100): aderencia do edital ao perfil da empresa.
+   - 90-100: objeto identico ao core da empresa, sem restricoes
+   - 70-89: alta aderencia, 1-2 pontos de atencao menores
+   - 50-69: aderencia parcial, exige avaliar riscos
+   - 30-49: baixa aderencia, apenas tangencia a atuacao da empresa
+   - 0-29: sem aderencia ou restricoes impeditivas (obra civil, saude, transporte, etc.)
+
+2. "resumo" (2-4 frases): descricao objetiva do edital.
+   - O que esta sendo contratado e para qual finalidade
+   - Principais exigencias tecnicas ou funcionais
+   - Valor estimado e modalidade
+   - Prazo de vigencia ou implantacao, se disponivel
+
+3. "justification" (minimo 300 caracteres): analise detalhada em topicos numerados.
+   - Pontos de aderencia: quais aspectos do edital se alinham ao perfil da empresa e por que
+   - Pontos de atencao: riscos, exigencias que podem nao ser atendidas, prazos criticos
+   - Conclusao: recomendacao clara (participar / avaliar melhor / descartar)
+   Seja especifico — mencione produtos, funcionalidades, certificacoes e orgaos contratantes.
 
 Perfil da empresa:
 {profile_text}
 
-Licitacao:
+Licitacao a analisar:
 - titulo: {bid.title}
 - orgao: {bid.agency}
 - valor_estimado: {bid.estimated_value}
@@ -117,42 +135,42 @@ Licitacao:
 - origem: {bid.source_site}
 """
 
-    # Desliga thinking para reduzir latência (~7s → <3s) — só funciona no Flash
+    # Desliga thinking para Flash — Pro usa thinking por padrão com budget automático
     _is_flash = "flash" in settings.vertex_model.lower()
     try:
         if _is_flash:
             _thinking = gtypes.ThinkingConfig(thinking_budget=0)
             _gen_config = gtypes.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 response_mime_type="application/json",
                 response_schema=_BidScoreSchema,
                 thinking_config=_thinking,
             )
             _fallback_config = gtypes.GenerateContentConfig(
-                temperature=0, max_output_tokens=2048, thinking_config=_thinking
+                temperature=0, max_output_tokens=4096, thinking_config=_thinking
             )
         else:
             _gen_config = gtypes.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=2048,
+                max_output_tokens=4096,
                 response_mime_type="application/json",
                 response_schema=_BidScoreSchema,
             )
-            _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=2048)
+            _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=4096)
     except (AttributeError, TypeError):
         _gen_config = gtypes.GenerateContentConfig(
             temperature=0,
-            max_output_tokens=2048,
+            max_output_tokens=4096,
             response_mime_type="application/json",
             response_schema=_BidScoreSchema,
         )
-        _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=2048)
+        _fallback_config = gtypes.GenerateContentConfig(temperature=0, max_output_tokens=4096)
 
     last_err: Exception | None = None
     for attempt in range(1, LLM_MAX_ATTEMPTS + 1):
         try:
-            suffix = "\n\nPreencha score E justification. Nao retorne vazio." if attempt > 1 else ""
+            suffix = "\n\nPreencha TODOS os campos: score, resumo e justification. Nao retorne vazio." if attempt > 1 else ""
             response = client.models.generate_content(
                 model=settings.vertex_model,
                 contents=base_prompt + suffix,
@@ -161,17 +179,18 @@ Licitacao:
             data = json.loads(response.text)
             score = float(data["score"])
             justification = str(data["justification"]).strip()
-            if len(justification) < 3:
+            resumo = str(data.get("resumo", "")).strip()
+            if len(justification) < 20:
                 raise ValueError("Justificativa muito curta.")
-            return max(0.0, min(100.0, score)), justification
+            return max(0.0, min(100.0, score)), justification, resumo or None
         except Exception as exc:
             last_err = exc
             logger.warning("Gemini tentativa %s/%s falhou: %s", attempt, LLM_MAX_ATTEMPTS, exc)
 
     # Fallback: pede JSON como texto simples (sem response_schema)
     json_tail = (
-        '\n\nResponda APENAS uma linha JSON valida, sem markdown:\n'
-        '{"score": <0-100>, "justification": "<texto em portugues>"}'
+        '\n\nResponda APENAS um JSON valido, sem markdown:\n'
+        '{"score": <0-100>, "resumo": "<2-3 frases sobre o edital>", "justification": "<analise detalhada>"}'
     )
     try:
         response = client.models.generate_content(
@@ -179,7 +198,15 @@ Licitacao:
             contents=base_prompt + json_tail,
             config=_fallback_config,
         )
-        return _parse_score_json_text(response.text)
+        raw = response.text.strip()
+        cleaned = raw
+        if isinstance(raw, list):
+            cleaned = "".join(str(p) for p in raw).strip()
+        data = json.loads(cleaned)
+        score = float(data["score"])
+        justification = str(data["justification"]).strip()
+        resumo = str(data.get("resumo", "")).strip() or None
+        return max(0.0, min(100.0, score)), justification, resumo
     except Exception as exc:
         logger.warning("Gemini fallback JSON-text falhou: %s (ultimo: %s)", exc, last_err)
         raise last_err or exc
@@ -190,12 +217,12 @@ def score_bid_with_profile(bid: ScrapedBid, profile_docs: dict[str, str]) -> Ana
 
     try:
         if settings.llm_provider.lower() == "vertex_gemini":
-            score, rationale = _vertex_gemini_score(bid, profile_docs)
+            score, rationale, resumo = _vertex_gemini_score(bid, profile_docs)
         else:
-            score, rationale = _heuristic_score(bid, profile_docs)
+            score, rationale, resumo = _heuristic_score(bid, profile_docs)
     except Exception as exc:
         logger.warning("Falha no analisador LLM (%s). Usando fallback heuristico.", exc)
-        score, rationale = _heuristic_score(bid, profile_docs)
+        score, rationale, resumo = _heuristic_score(bid, profile_docs)
 
     analysis_time = time.perf_counter() - start
     return AnalyzedBid(
@@ -203,4 +230,5 @@ def score_bid_with_profile(bid: ScrapedBid, profile_docs: dict[str, str]) -> Ana
         analysis_time_seconds=analysis_time,
         score=round(score, 2),
         justification=rationale,
+        resumo=resumo,
     )

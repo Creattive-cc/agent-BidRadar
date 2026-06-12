@@ -20,6 +20,7 @@ class Bid(Base):
     analysis_time_seconds: Mapped[float] = mapped_column(Float, default=0)
     score: Mapped[float] = mapped_column(Float)
     justification: Mapped[str] = mapped_column(Text)
+    resumo: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

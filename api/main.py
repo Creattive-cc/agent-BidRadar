@@ -526,6 +526,7 @@ def _bid_to_dict(row: Bid) -> dict:
         "analysis_time_seconds": row.analysis_time_seconds,
         "score": row.score,
         "justification": row.justification,
+        "resumo": row.resumo,
         "created_at": row.created_at.isoformat(),
     }
 
@@ -611,6 +612,51 @@ def delete_all_bids(
     count = db.query(Bid).delete()
     db.commit()
     return {"deleted": count}
+
+
+@app.post("/admin/reprocess", status_code=202)
+def reprocess_bids(
+    _: User = Depends(require_admin),
+) -> dict:
+    """Re-analisa todos os bids existentes com o modelo e prompt atuais."""
+    import threading
+
+    def _do_reprocess() -> None:
+        from agent.analyzer.matcher import score_bid_with_profile
+        from agent.company_profile import read_profile_files
+        from agent.schemas import ScrapedBid
+
+        profile = read_profile_files()
+        with SessionLocal() as session:
+            bids = session.query(Bid).all()
+            total = len(bids)
+            logger.info("Reprocessando %d bids...", total)
+            for i, row in enumerate(bids, 1):
+                try:
+                    scraped = ScrapedBid(
+                        title=row.title,
+                        agency=row.agency,
+                        estimated_value=row.estimated_value,
+                        deadline=row.deadline,
+                        url=row.url,
+                        source_site=row.source_site,
+                        find_time_seconds=row.find_time_seconds,
+                    )
+                    analyzed = score_bid_with_profile(scraped, profile)
+                    row.score = analyzed.score
+                    row.justification = analyzed.justification
+                    row.resumo = analyzed.resumo
+                    row.analysis_time_seconds = analyzed.analysis_time_seconds
+                    if i % 10 == 0:
+                        session.commit()
+                        logger.info("Reprocessados %d/%d", i, total)
+                except Exception as exc:
+                    logger.warning("Falha ao reprocessar bid %d: %s", row.id, exc)
+            session.commit()
+            logger.info("Reprocessamento concluido: %d bids atualizados.", total)
+
+    threading.Thread(target=_do_reprocess, daemon=True).start()
+    return {"status": "accepted"}
 
 
 # ── Agent ─────────────────────────────────────────────────────────────────────
