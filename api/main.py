@@ -616,9 +616,10 @@ def delete_all_bids(
 
 @app.post("/admin/reprocess", status_code=202)
 def reprocess_bids(
+    min_score: float = 0,
     _: User = Depends(require_admin),
 ) -> dict:
-    """Re-analisa todos os bids existentes com o modelo e prompt atuais."""
+    """Re-analisa bids com score >= min_score usando o modelo e prompt atuais."""
     import threading
 
     def _do_reprocess() -> None:
@@ -628,7 +629,10 @@ def reprocess_bids(
 
         profile = read_profile_files()
         with SessionLocal() as session:
-            bids = session.query(Bid).all()
+            query = session.query(Bid)
+            if min_score > 0:
+                query = query.filter(Bid.score >= min_score)
+            bids = query.order_by(Bid.score.desc()).all()
             total = len(bids)
             logger.info("Reprocessando %d bids...", total)
             for i, row in enumerate(bids, 1):
