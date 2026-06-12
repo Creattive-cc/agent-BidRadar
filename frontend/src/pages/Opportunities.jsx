@@ -201,18 +201,29 @@ function JustificationModal({ bid, products, onClose }) {
   );
 }
 
-const FILTERS = [
-  { id: "match80", label: "Match > 80%", test: (b) => b.score >= 80 },
-  { id: "highPriority", label: "Alta Prioridade", test: (b) => b.score >= 70 },
-  { id: "value100k", label: "Valor > R$ 100k", test: (b) => (b.estimated_value ?? 0) >= 100_000 },
+const SCORE_OPTIONS = [
+  { label: "Todos", value: null },
+  { label: "> 90%", value: 90 },
+  { label: "> 75%", value: 75 },
+  { label: "> 50%", value: 50 },
+];
+
+const DATE_OPTIONS = [
+  { label: "Todos", value: null },
+  { label: "Hoje", value: 1 },
+  { label: "7 dias", value: 7 },
+  { label: "30 dias", value: 30 },
 ];
 
 export default function Opportunities() {
   const [bids, setBids] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilters, setActiveFilters] = useState(new Set());
   const [selected, setSelected] = useState(null);
+  const [sortBy, setSortBy] = useState("score");
+  const [scoreFilter, setScoreFilter] = useState(null);
+  const [dateFilter, setDateFilter] = useState(null);
+  const [valueFilter, setValueFilter] = useState(false);
 
   useEffect(() => {
     fetchBids()
@@ -222,20 +233,43 @@ export default function Opportunities() {
     fetchProducts().then(setProducts).catch(console.error);
   }, []);
 
-  function toggleFilter(id) {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const hasFilters = scoreFilter !== null || dateFilter !== null || valueFilter;
+
+  function clearFilters() {
+    setScoreFilter(null);
+    setDateFilter(null);
+    setValueFilter(false);
   }
 
-  const filtered =
-    activeFilters.size === 0
-      ? bids
-      : bids.filter((b) =>
-          [...activeFilters].every((id) => FILTERS.find((f) => f.id === id)?.test(b))
-        );
+  const filtered = bids
+    .filter((b) => scoreFilter === null || b.score >= scoreFilter)
+    .filter((b) => {
+      if (dateFilter === null) return true;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - dateFilter);
+      return new Date(b.created_at) >= cutoff;
+    })
+    .filter((b) => !valueFilter || (b.estimated_value ?? 0) >= 100_000)
+    .sort((a, b) =>
+      sortBy === "score"
+        ? b.score - a.score
+        : new Date(b.created_at) - new Date(a.created_at)
+    );
+
+  function Chip({ active, onClick, children }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+          active
+            ? "bg-violet-600 text-white border-violet-600"
+            : "bg-white text-gray-600 border-gray-200 hover:border-violet-300"
+        }`}
+      >
+        {children}
+      </button>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -244,26 +278,41 @@ export default function Opportunities() {
         <p className="text-sm text-gray-500 mt-0.5">Analise os editais com maior compatibilidade com seus produtos.</p>
       </div>
 
+      {/* Sort + result count */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-400 font-medium mr-1">Ordenar:</span>
+        <Chip active={sortBy === "score"} onClick={() => setSortBy("score")}>Maior Match</Chip>
+        <Chip active={sortBy === "date"} onClick={() => setSortBy("date")}>Mais Recentes</Chip>
+        <span className="ml-auto text-xs text-gray-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Filters */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => toggleFilter(f.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              activeFilters.has(f.id)
-                ? "bg-violet-600 text-white border-violet-600"
-                : "bg-white text-gray-600 border-gray-200 hover:border-violet-300"
-            }`}
-          >
-            {f.label}
-          </button>
+        <span className="text-xs text-gray-400 font-medium">Match:</span>
+        {SCORE_OPTIONS.map((o) => (
+          <Chip key={String(o.value)} active={scoreFilter === o.value} onClick={() => setScoreFilter(o.value)}>
+            {o.label}
+          </Chip>
         ))}
-        {activeFilters.size > 0 && (
-          <button onClick={() => setActiveFilters(new Set())} className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">
+
+        <span className="w-px h-4 bg-gray-200 mx-1" />
+
+        <span className="text-xs text-gray-400 font-medium">Período:</span>
+        {DATE_OPTIONS.map((o) => (
+          <Chip key={String(o.value)} active={dateFilter === o.value} onClick={() => setDateFilter(o.value)}>
+            {o.label}
+          </Chip>
+        ))}
+
+        <span className="w-px h-4 bg-gray-200 mx-1" />
+
+        <Chip active={valueFilter} onClick={() => setValueFilter((v) => !v)}>R$ &gt; 100k</Chip>
+
+        {hasFilters && (
+          <button onClick={clearFilters} className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">
             Limpar filtros
           </button>
         )}
-        <span className="ml-auto text-xs text-gray-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading ? (
