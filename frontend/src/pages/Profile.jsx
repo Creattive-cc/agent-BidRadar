@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   fetchDocuments, createDocument, updateDocument, deleteDocument,
   fetchProducts, createProduct, updateProduct, deleteProduct,
+  reprocessBids,
 } from "../services/api";
 
 // ── Document Card ─────────────────────────────────────────────────────────────
@@ -191,6 +192,116 @@ function NewDocumentModal({ onClose, onCreated }) {
   );
 }
 
+// ── Reprocess Modal ──────────────────────────────────────────────────────────
+
+function ReprocessModal({ onClose }) {
+  const [minScore, setMinScore] = useState(0);
+  const [status, setStatus] = useState("idle"); // idle | running | done
+
+  async function handleReprocess() {
+    setStatus("running");
+    await reprocessBids(minScore);
+    setStatus("done");
+  }
+
+  if (status === "done") {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+          <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-base font-semibold text-gray-900 mb-1">Reprocessamento iniciado</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            O Gemini 2.5 Pro está reavaliando os editais em segundo plano. Os resultados aparecerão em Oportunidades conforme forem processados.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-base font-semibold text-gray-900">Reprocessar Editais</h2>
+          {status === "idle" && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+          )}
+        </div>
+
+        <div className="p-6 space-y-5">
+          <p className="text-sm text-gray-600">
+            O Gemini 2.5 Pro reavaliará todos os editais salvos usando o perfil e os produtos atuais. Pode levar vários minutos dependendo do volume.
+          </p>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-2">
+              Reprocessar apenas editais com score ≥ <span className="text-violet-600 font-bold">{minScore}%</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={90}
+              step={5}
+              value={minScore}
+              onChange={(e) => setMinScore(Number(e.target.value))}
+              className="w-full accent-violet-600"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+              <span>0% (todos)</span>
+              <span>50% (acima da média)</span>
+              <span>90%</span>
+            </div>
+          </div>
+
+          {minScore === 0 && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+              <p className="text-xs text-amber-700">Reprocessará 100% dos editais. Prefira filtrar por score ≥ 50% para focar nos mais relevantes.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+          {status === "idle" && (
+            <button onClick={onClose} className="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+              Cancelar
+            </button>
+          )}
+          <button
+            onClick={handleReprocess}
+            disabled={status === "running"}
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-60"
+          >
+            {status === "running" ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Processando…
+              </>
+            ) : (
+              "Reprocessar Editais"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Product Row ───────────────────────────────────────────────────────────────
 
 function ProductRow({ product, onSave, onDelete }) {
@@ -355,6 +466,7 @@ export default function Profile() {
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [showNewDoc, setShowNewDoc] = useState(false);
+  const [showReprocess, setShowReprocess] = useState(false);
   const [docsError, setDocsError] = useState("");
 
   useEffect(() => {
@@ -402,12 +514,24 @@ export default function Profile() {
               Documentos lidos pelo Gemini para avaliar aderência de cada licitação.
             </p>
           </div>
-          <button
-            onClick={() => setShowNewDoc(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors flex-shrink-0"
-          >
-            + Novo Documento
-          </button>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowReprocess(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition-colors"
+              title="Reavaliar editais salvos com o perfil atual via Gemini"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Reprocessar Editais
+            </button>
+            <button
+              onClick={() => setShowNewDoc(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white text-sm rounded-lg hover:bg-violet-700 transition-colors"
+            >
+              + Novo Documento
+            </button>
+          </div>
         </div>
 
         {docsError && (
@@ -468,6 +592,10 @@ export default function Profile() {
           onClose={() => setShowNewDoc(false)}
           onCreated={(doc) => setDocs((prev) => [...prev, doc])}
         />
+      )}
+
+      {showReprocess && (
+        <ReprocessModal onClose={() => setShowReprocess(false)} />
       )}
     </div>
   );

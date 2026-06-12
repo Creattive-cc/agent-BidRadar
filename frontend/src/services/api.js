@@ -66,6 +66,26 @@ export const deleteUser = (id) => request(`/admin/users/${id}`, { method: "DELET
 // Agent
 export const runAgentOnce = () => request("/agent/run-once", { method: "POST" });
 
+// Reprocess — fire-and-forget: servidor continua mesmo se o browser der timeout
+export async function reprocessBids(minScore = 0) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const res = await fetch(`${API_BASE}/admin/reprocess?min_score=${minScore}`, {
+      method: "POST",
+      headers: authHeaders(),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) return await res.json();
+    return null;
+  } catch {
+    return null; // timeout ou rede — Cloud Run continua processando
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Company profile documents (DB-backed)
 export const fetchDocuments = () => request("/company-profile/documents");
 export const createDocument = (data) =>
