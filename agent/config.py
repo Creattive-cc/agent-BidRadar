@@ -30,6 +30,8 @@ class Settings(BaseModel):
         "BIDRADAR_PNCP_MODALIDADES",
         "6,4,8,9",
     )
+    # Janela de coleta em dias (contando da data atual para trás)
+    pncp_days: int = int(os.getenv("BIDRADAR_PNCP_DAYS", "7"))
     # GCP: projeto que hospeda BigQuery, Pub/Sub e Firestore (pode diferir do projeto Vertex).
     gcp_project_id: str = os.getenv(
         "BIDRADAR_GCP_PROJECT_ID", "creattive-licitacoes-dev"
