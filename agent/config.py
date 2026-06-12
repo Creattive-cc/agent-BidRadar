@@ -28,7 +28,7 @@ class Settings(BaseModel):
     # Codigos de modalidade PNCP (separados por virgula). Padrao: principais da Lei 14.133.
     pncp_modalidades: str = os.getenv(
         "BIDRADAR_PNCP_MODALIDADES",
-        "1,2,3,4,5,6,7,8,9,10,11,12",
+        "6,4,8,9",
     )
     # GCP: projeto que hospeda BigQuery, Pub/Sub e Firestore (pode diferir do projeto Vertex).
     gcp_project_id: str = os.getenv(
