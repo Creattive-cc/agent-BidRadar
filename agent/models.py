@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, create_engine, String, Float, DateTime, Integer, Text, text
+from sqlalchemy import Boolean, create_engine, String, Float, DateTime, Integer, Text
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, sessionmaker
 from agent.config import settings
 
@@ -90,10 +90,3 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 def init_db() -> None:
     settings.db_file.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
-    # Migrações incrementais — idempotentes via IF NOT EXISTS (PostgreSQL)
-    with engine.connect() as conn:
-        try:
-            conn.execute(text("ALTER TABLE bids ADD COLUMN IF NOT EXISTS resumo TEXT"))
-            conn.commit()
-        except Exception:
-            conn.rollback()
