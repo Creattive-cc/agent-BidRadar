@@ -37,7 +37,7 @@ _EDUCATION_KEYWORDS = [
     "tecnologia educacional", "tecnologia da educação",
 ]
 
-_GEMINI_WORKERS = 10  # chamadas paralelas ao Gemini
+_GEMINI_WORKERS = 20  # chamadas paralelas ao Gemini
 
 
 def _is_education_related(bid: ScrapedBid) -> bool:

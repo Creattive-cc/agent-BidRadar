@@ -692,9 +692,11 @@ def reprocess_bids(
 # ── Agent ─────────────────────────────────────────────────────────────────────
 
 
-@app.post("/agent/run-once")
+@app.post("/agent/run-once", status_code=202)
 def trigger_agent(_: User = Depends(get_current_user)) -> dict:
-    return run_once()
+    import threading
+    threading.Thread(target=run_once, daemon=False).start()
+    return {"status": "accepted"}
 
 
 @app.post("/admin/trigger", status_code=202)
