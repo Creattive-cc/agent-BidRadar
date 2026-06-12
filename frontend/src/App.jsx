@@ -7,6 +7,7 @@ import Opportunities from "./pages/Opportunities";
 import Logs from "./pages/Logs";
 import Filters from "./pages/Filters";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 
 function PrivateRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="oportunidades" element={<Opportunities />} />
             <Route path="filtros" element={<Filters />} />
             <Route path="logs" element={<Logs />} />
+            <Route path="perfil" element={<Profile />} />
             <Route
               path="admin"
               element={

@@ -10,11 +10,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from agent.company_profile import PROFILE_DIR, ensure_profile_dir, read_profile_files
+from agent.company_profile import PROFILE_DIR, ensure_profile_dir, read_profile_files, seed_documents_from_files
 from agent.config import settings
 from agent.downloader import download_pending_pdfs
 from agent.logging_utils import get_logger
-from agent.models import AgentLog, Bid, FilterConfig, Product, SessionLocal, User, init_db
+from agent.models import AgentLog, Bid, CompanyDocument, FilterConfig, Product, SessionLocal, User, init_db
 from agent.runner import run_once
 from api.auth import (
     create_access_token,
@@ -88,6 +88,18 @@ class MarkdownUpdate(BaseModel):
     content: str
 
 
+class DocumentCreate(BaseModel):
+    name: str
+    filename: str
+    content: str = ""
+
+
+class DocumentUpdate(BaseModel):
+    name: str | None = None
+    content: str | None = None
+    is_active: bool | None = None
+
+
 class PubSubMessage(BaseModel):
     data: str
     messageId: str
@@ -105,6 +117,9 @@ class PubSubPushPayload(BaseModel):
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    seeded = seed_documents_from_files()
+    if seeded:
+        logger.info("Company documents: %d arquivos importados do disco para o banco.", seeded)
     ensure_profile_dir()
     _ensure_admin_user()
     _ensure_filter_config()
@@ -489,6 +504,18 @@ def _product_to_dict(p: Product) -> dict:
     }
 
 
+def _doc_to_dict(d: CompanyDocument) -> dict:
+    return {
+        "id": d.id,
+        "name": d.name,
+        "filename": d.filename,
+        "content": d.content,
+        "is_active": d.is_active,
+        "created_at": d.created_at.isoformat(),
+        "updated_at": d.updated_at.isoformat(),
+    }
+
+
 # ── Licitações ────────────────────────────────────────────────────────────────
 
 
@@ -730,6 +757,74 @@ def pubsub_analisar(payload: PubSubPushPayload) -> dict:
 
 
 # ── Company Profile ───────────────────────────────────────────────────────────
+
+
+# ── Company Profile Documents (DB-backed) ─────────────────────────────────────
+
+
+@app.get("/company-profile/documents")
+def list_documents(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list:
+    docs = db.query(CompanyDocument).order_by(CompanyDocument.id).all()
+    return [_doc_to_dict(d) for d in docs]
+
+
+@app.post("/company-profile/documents", status_code=201)
+def create_document(
+    payload: DocumentCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    fn = payload.filename.strip()
+    if not fn.endswith(".md"):
+        fn += ".md"
+    if db.query(CompanyDocument).filter(CompanyDocument.filename == fn).first():
+        raise HTTPException(status_code=409, detail="Já existe um documento com esse filename")
+    doc = CompanyDocument(name=payload.name, filename=fn, content=payload.content)
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return _doc_to_dict(doc)
+
+
+@app.put("/company-profile/documents/{doc_id}")
+def update_document(
+    doc_id: int,
+    payload: DocumentUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> dict:
+    doc = db.query(CompanyDocument).filter(CompanyDocument.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    if payload.name is not None:
+        doc.name = payload.name
+    if payload.content is not None:
+        doc.content = payload.content
+    if payload.is_active is not None:
+        doc.is_active = payload.is_active
+    doc.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(doc)
+    return _doc_to_dict(doc)
+
+
+@app.delete("/company-profile/documents/{doc_id}", status_code=204)
+def delete_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> None:
+    doc = db.query(CompanyDocument).filter(CompanyDocument.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    db.delete(doc)
+    db.commit()
+
+
+# ── Company Profile Files (legacy — arquivo em disco) ─────────────────────────
 
 
 @app.get("/company-profile/files")

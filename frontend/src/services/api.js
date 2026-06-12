@@ -66,11 +66,11 @@ export const deleteUser = (id) => request(`/admin/users/${id}`, { method: "DELET
 // Agent
 export const runAgentOnce = () => request("/agent/run-once", { method: "POST" });
 
-// Company profile (legacy)
-export const fetchProfileFiles = () => request("/company-profile/files");
-export const fetchProfileContent = (filename) => request(`/company-profile/${filename}`);
-export const saveProfileContent = (filename, content) =>
-  request(`/company-profile/${filename}`, {
-    method: "PUT",
-    body: JSON.stringify({ content }),
-  });
+// Company profile documents (DB-backed)
+export const fetchDocuments = () => request("/company-profile/documents");
+export const createDocument = (data) =>
+  request("/company-profile/documents", { method: "POST", body: JSON.stringify(data) });
+export const updateDocument = (id, data) =>
+  request(`/company-profile/documents/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteDocument = (id) =>
+  request(`/company-profile/documents/${id}`, { method: "DELETE" });
