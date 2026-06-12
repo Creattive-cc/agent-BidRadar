@@ -122,10 +122,19 @@ def run_once() -> dict[str, int]:
         logger.info("Nenhum edital educacional novo encontrado.")
         return {"scraped": scraped_count, "saved": 0, "discarded": discarded}
 
-    # Scoring paralelo com Gemini
+    # Scoring paralelo com Gemini — salva em mini-lotes de 50 para aparecer progressivamente
+    _FLUSH_SIZE = 50
     saved_count = 0
-    rows_to_insert: list[Bid] = []
+    pending: list[Bid] = []
     seen_urls = set(existing_urls)
+
+    def _flush(rows: list[Bid]) -> int:
+        if not rows:
+            return 0
+        with SessionLocal() as session:
+            session.add_all(rows)
+            session.commit()
+        return len(rows)
 
     with ThreadPoolExecutor(max_workers=_GEMINI_WORKERS) as executor:
         futures = {
@@ -138,16 +147,17 @@ def run_once() -> dict[str, int]:
             done += 1
             row = future.result()
             if row is not None:
-                rows_to_insert.append(row)
+                pending.append(row)
             if done % 10 == 0:
                 logger.info("Scoring: %d/%d concluídos", done, len(futures))
+            if len(pending) >= _FLUSH_SIZE:
+                saved_count += _flush(pending)
+                pending.clear()
+                logger.info("Flush parcial: %d salvos até agora", saved_count)
 
-    # Salva tudo em batch
-    if rows_to_insert:
-        with SessionLocal() as session:
-            session.add_all(rows_to_insert)
-            session.commit()
-            saved_count = len(rows_to_insert)
+    # Flush final do restante
+    saved_count += _flush(pending)
+    pending.clear()
 
     pdf_results = download_pending_pdfs(limit=20)
     logger.info("Download de PDFs: %s", pdf_results)
