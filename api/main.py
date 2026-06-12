@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent.analyzer.gemini_analyzer import analyze_edital
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
