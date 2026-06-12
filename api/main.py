@@ -614,53 +614,52 @@ def delete_all_bids(
     return {"deleted": count}
 
 
-@app.post("/admin/reprocess", status_code=202)
+@app.post("/admin/reprocess", status_code=200)
 def reprocess_bids(
     min_score: float = 0,
     _: User = Depends(require_admin),
 ) -> dict:
-    """Re-analisa bids com score >= min_score usando o modelo e prompt atuais."""
-    import threading
+    """Re-analisa bids com score >= min_score. Síncrono — aguarda conclusão."""
+    from agent.analyzer.matcher import score_bid_with_profile
+    from agent.company_profile import read_profile_files
+    from agent.schemas import ScrapedBid
 
-    def _do_reprocess() -> None:
-        from agent.analyzer.matcher import score_bid_with_profile
-        from agent.company_profile import read_profile_files
-        from agent.schemas import ScrapedBid
-
-        profile = read_profile_files()
-        with SessionLocal() as session:
-            query = session.query(Bid)
-            if min_score > 0:
-                query = query.filter(Bid.score >= min_score)
-            bids = query.order_by(Bid.score.desc()).all()
-            total = len(bids)
-            logger.info("Reprocessando %d bids...", total)
-            for i, row in enumerate(bids, 1):
-                try:
-                    scraped = ScrapedBid(
-                        title=row.title,
-                        agency=row.agency,
-                        estimated_value=row.estimated_value,
-                        deadline=row.deadline,
-                        url=row.url,
-                        source_site=row.source_site,
-                        find_time_seconds=row.find_time_seconds,
-                    )
-                    analyzed = score_bid_with_profile(scraped, profile)
-                    row.score = analyzed.score
-                    row.justification = analyzed.justification
-                    row.resumo = analyzed.resumo
-                    row.analysis_time_seconds = analyzed.analysis_time_seconds
-                    if i % 10 == 0:
-                        session.commit()
-                        logger.info("Reprocessados %d/%d", i, total)
-                except Exception as exc:
-                    logger.warning("Falha ao reprocessar bid %d: %s", row.id, exc)
-            session.commit()
-            logger.info("Reprocessamento concluido: %d bids atualizados.", total)
-
-    threading.Thread(target=_do_reprocess, daemon=True).start()
-    return {"status": "accepted"}
+    profile = read_profile_files()
+    updated = 0
+    failed = 0
+    with SessionLocal() as session:
+        query = session.query(Bid)
+        if min_score > 0:
+            query = query.filter(Bid.score >= min_score)
+        bids = query.order_by(Bid.score.desc()).all()
+        total = len(bids)
+        logger.info("Reprocessando %d bids (min_score=%.0f)...", total, min_score)
+        for i, row in enumerate(bids, 1):
+            try:
+                scraped = ScrapedBid(
+                    title=row.title,
+                    agency=row.agency,
+                    estimated_value=row.estimated_value,
+                    deadline=row.deadline,
+                    url=row.url,
+                    source_site=row.source_site,
+                    find_time_seconds=row.find_time_seconds,
+                )
+                analyzed = score_bid_with_profile(scraped, profile)
+                row.score = analyzed.score
+                row.justification = analyzed.justification
+                row.resumo = analyzed.resumo
+                row.analysis_time_seconds = analyzed.analysis_time_seconds
+                updated += 1
+                if i % 5 == 0:
+                    session.commit()
+                    logger.info("Reprocessados %d/%d", i, total)
+            except Exception as exc:
+                failed += 1
+                logger.warning("Falha ao reprocessar bid %d: %s", row.id, exc)
+        session.commit()
+        logger.info("Reprocessamento concluido: %d atualizados, %d falhas.", updated, failed)
+    return {"total": total, "updated": updated, "failed": failed}
 
 
 # ── Agent ─────────────────────────────────────────────────────────────────────
