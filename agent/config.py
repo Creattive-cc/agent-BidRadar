@@ -44,6 +44,8 @@ class Settings(BaseModel):
     jwt_expire_minutes: int = int(os.getenv("BIDRADAR_JWT_EXPIRE_MINUTES", "480"))
     admin_email: str = os.getenv("BIDRADAR_ADMIN_EMAIL", "admin@bidradar.local")
     admin_password: str = os.getenv("BIDRADAR_ADMIN_PASSWORD", "admin123")
+    # Chave estática para o Cloud Scheduler disparar o agente sem JWT
+    scheduler_secret: str = os.getenv("BIDRADAR_SCHEDULER_SECRET", "")
     # DATABASE_URL sobrescreve db_path quando definido (ex: Cloud SQL Postgres)
     database_url: str = os.getenv("DATABASE_URL", "")
 

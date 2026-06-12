@@ -621,6 +621,15 @@ def trigger_agent(_: User = Depends(get_current_user)) -> dict:
     return run_once()
 
 
+@app.post("/admin/trigger", status_code=202)
+def scheduler_trigger(x_scheduler_secret: str = Header(default="")) -> dict:
+    if not settings.scheduler_secret or x_scheduler_secret != settings.scheduler_secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    import threading
+    threading.Thread(target=run_once, daemon=True).start()
+    return {"status": "accepted"}
+
+
 # ── Pub/Sub ───────────────────────────────────────────────────────────────────
 
 
