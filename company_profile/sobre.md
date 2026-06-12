@@ -1,129 +1,27 @@
-# Creattive — Base de Conhecimento
+# Perfil da Empresa
 
-*Conteúdo extraído automaticamente do site https://creattive.cc/*
+Somos uma empresa de educação mediada por tecnologia, especialista em desenvolvimento de soluções tecnológicas para educação básica e corporativa, com presença em diversos estados brasileiros.
 
+Possuímos uma equipe multidisciplinar, tecnológica e com experiência em educação. Oferecemos experiências personalizadas de aprendizagem e metodologias de ensino contemporâneas, potencializando resultados por meio de plataforma de ensino à distância, desenvolvimento de sistemas de ensino, plataforma de gestão educacional e educação corporativa.
 
----
+## Público-alvo principal
 
-## Produtos e Soluções — Cards da Home
+- Secretarias municipais e estaduais de educação
+- Prefeituras com redes públicas de ensino (Ensino Fundamental I, II e Médio)
+- Órgãos públicos que demandam soluções de gestão escolar e avaliação educacional
+- Redes com distorção idade/série e necessidade de recomposição de aprendizagem
 
-### Farol 360
+## Modelo de negócio
 
-Plataforma de gestão inteligente, integrando dados e processos para decisões estratégicas em tempo real.
+- Licenciamento de software (SaaS e PaaS) para o setor público educacional
+- Contratos de implantação, suporte técnico e treinamento
+- Projetos de longa duração com secretarias de educação (12 a 60 meses)
+- Experiência comprovada em processos licitatórios no setor educacional público
 
-### Creattive Minds
+## Diferenciais competitivos
 
-Soluções de inteligência artificial generativa para automação, análise de dados e inovação em comunicação digital.
-
-### Integra+
-
-Ferramenta para RH e comunicação, promovendo integração, colaboração e eficiência.
-
-### Sentinela Digital
-
-Solução de cibersegurança com monitoramento contínuo e proteção avançada para dados e sistemas corporativos.
-
-### Guardião Creattive
-
-Monitoramento inteligente de infraestrutura, aplicações e bancos de dados com análise preditiva.
-
-### Data Safe Point
-
-Solução de backup e recuperação de dados corporativos, garantindo conformidade com LGPD.
-
-
----
-
-## Diferenciais e Valores
-
-**Assistência para Devs:** Gemini Code Assist, Cloud Workstations, Cloud Code
-**IA e Machine Learning:** Vertex AI, Model Garden (Gemini 1.5 Pro), AutoML
-**Armazenamento & BD:** Cloud SQL, AlloyDB, Spanner, Cloud Storage
-**Segurança e Rede:** Chronicle, Cloud Armor, Identity-Aware Proxy (IAP)
-
----
-
-## Creattive Minds (/creattive_minds)
-
-- transformar sua tecnologia!
-- uma empresa de tecnologia que acredita no poder da inovação para transformar negócios. Atuamos como base estratégica para organizações que buscam crescimento inteligente, conectando soluções digitais avançadas à realidade de cada cliente.
-- Google Workspace & Google Cloud
-- Licenciamento, implantação e suporte especializado para ambientes colaborativos e infraestrutura em nuvem.
-- é uma empresa nacional de tecnologia, referência em inovação, inteligência artificial e soluções Google. Nascemos em 2022 com o propósito de transformar a realidade das empresas brasileiras, conectando tecnologia avançada à estratégia de negócios.
-- Farol 360, Creattive Minds, Integra+, Sentinela Digital, Guardião Creattive e Data Safe Point.
-- Plataforma de gestão inteligente, integrando dados e processos para decisões estratégicas em tempo real.
-- Soluções de inteligência artificial generativa para automação, análise de dados e inovação em comunicação digital.
-- Ferramenta para RH e comunicação, promovendo integração, colaboração e eficiência.
-- Solução de cibersegurança com monitoramento contínuo e proteção avançada para dados e sistemas corporativos.
-- Monitoramento inteligente de infraestrutura, aplicações e bancos de dados com análise preditiva.
-- Solução de backup e recuperação de dados corporativos, garantindo conformidade com LGPD.
-- Ser a base de inovação, segurança e transformação digital para empresas que desejam crescer de forma inteligente, tornando a tecnologia acessível, estratégica e humana.
-- Consolidar-se como referência nacional em soluções tecnológicas, reconhecida pela excelência, personalização e impacto positivo nos resultados dos clientes.
-- Inovação, Eficiência, Transparência, Resultados, Responsabilidade e Integração.
-- Nossa equipe é composta por profissionais certificados e atualizados, com expertise validada e reconhecida pelo Google. Garantimos as melhores práticas em Google Workspace, Google Cloud e na integração e desenvolvimento de soluções de Inteligência Artificial, como o Gemini.
-- Simplificamos o pagamento com faturamento local e nota fiscal brasileira, aceitando cobrança em reais via boleto ou transferência bancária. Além disso, facilitamos a recuperação de impostos ao tratar o licenciamento de nuvem como custo operacional.
-- Adotamos uma abordagem consultiva e moderna para simplificar processos, proteger dados e potencializar resultados. Nosso suporte técnico é em português e oferecemos consultoria contínua, focada em adaptar as soluções à realidade da sua operação e cultura digital.
-- Com presença estratégica em todo o país, incluindo Brasília, São Paulo (Capital) e Manaus além da Matriz em Campinas/SP, garantimos suporte, implementação ágil e acompanhamento próximo em nível nacional.
-
----
-
-## Google Partner (/google_partner)
-
-- Rua Pedro Vieira da Silva, N° 39 Jardim Santa Genebra - Campinas/SP
-- Transforme dados em decisões
-- Looker (Google Cloud)
-- Com o Farol360 você elimina:
-- Decisões baseadas em intuição ou dados obsoletos.
-- Ausência de indicadores (KPIs) claros e acessíveis.
-- Processos manuais excessivos e retrabalho na geração de relatórios.
-- Dificuldade em traduzir dados técnicos em informações de valor para a diretoria.
-- A Jornada para uma cultura Data-Driven
-- Por que o Farol 360?
-- Eficiência operacional: redução de tempo em relatórios manuais;
-- Agilidade: indicadores sempre atualizados e disponíveis em qualquer dispositivo;
-- Tecnologia Looker & IA Gemini;
-- Configuração e suporte Inclusos: atendimento consultivo especializado para manter sua plataforma sempre otimizada;
-- Personalização White Label: dashboards prontos para uso com a identidade visual da sua marca.
-- Escolha o plano ideal para sua escala
-- Inteligência Artificial que fala a língua da sua marca
-- versatilidade da nossa IA
-- Criação de dashboards visuais por área estratégica.
-- Indicadores moldados conforme as metas do seu negócio.
-- Integração com IA Gemini para automação e insights preditivos.
-- Aplicação de camadas semânticas para segurança e integridade dos dados.
-- licença adicional por usuário)
-- (licença adicional por usuário)
-- (vendas, estoque ou financeiro)
-- (ex.: vendas ou financeiro)
-- (ex.: vendas + estoque)
-- (comercial, financeiro, vendas, etc.)
-- Até 3 fluxos ou agentes
-- (dados e processos internos)
-- Multiagentes + automações
-- (definido conforme contrato)
-- (Whatsapp, site, rede social)
-- Multicanais + Apps Internos
-- (integrações com sistemase apps internos)
-- (≈1 milhão de tokens)
-- (≈5 milhão de tokens)
-- (≈20 milhão de tokens, escalável)
-- Ajustes conforme uso e feedbacks
-- Nome e Personalidade:
-
----
-
-## Trabalhe Conosco (/trabalhe_conosco)
-
-- captura e qualificação de leads, além de respostas automatizadas no WhatsApp.
-- automação de FAQs, triagens, agendamentos e processos de onboarding.
-- Nossa atuação é consultiva,
-
----
-
-## Informações de Contato
-
-- Rua Pedro Vieira da Silva, N° 39
-- Rua Pedro Vieira da Silva, N° 39 Jardim Santa Genebra - Campinas/SP
-- comercial@creattive.cc
-- suporte@creattive.cc
-- vagas@creattive.cc
+- Equipe especializada em tecnologia educacional e políticas públicas de educação
+- Soluções alinhadas à BNCC, ao SAEB e às diretrizes do MEC
+- Histórico de implantações em redes municipais em múltiplos estados brasileiros
+- Suporte pedagógico integrado às plataformas tecnológicas
+- Conformidade com LGPD e padrões de segurança para dados de alunos e professores

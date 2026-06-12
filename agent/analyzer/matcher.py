@@ -14,34 +14,6 @@ logger = get_logger("bidradar.analyzer")
 LLM_MAX_ATTEMPTS = 3
 
 
-def _heuristic_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[float, str, None]:
-    haystack = "\n".join(profile_docs.values()).lower()
-    title = bid.title.lower()
-
-    positive_keywords = ["ti", "suporte", "sistema", "dados", "bi", "software", "cloud", "analise"]
-    negative_keywords = ["obra civil", "medicamento", "merenda", "transporte escolar"]
-
-    score = 35.0
-
-    for keyword in positive_keywords:
-        if keyword in title and keyword in haystack:
-            score += 10
-
-    for keyword in negative_keywords:
-        if keyword in title:
-            score -= 25
-
-    score = max(0.0, min(100.0, score))
-
-    if score >= 75:
-        rationale = "Alta aderencia: objeto alinhado com servicos e experiencia descritos no perfil."
-    elif score >= 45:
-        rationale = "Aderencia moderada: existem pontos de compatibilidade, mas revisar escopo e restricoes."
-    else:
-        rationale = "Baixa aderencia: pouco alinhamento com as areas de atuacao e/ou possiveis restricoes."
-
-    return score, rationale, None
-
 
 def _parse_score_json_text(raw: str) -> tuple[float, str]:
     cleaned = raw.strip()
@@ -214,16 +186,7 @@ Licitacao a analisar:
 
 def score_bid_with_profile(bid: ScrapedBid, profile_docs: dict[str, str]) -> AnalyzedBid:
     start = time.perf_counter()
-
-    try:
-        if settings.llm_provider.lower() == "vertex_gemini":
-            score, rationale, resumo = _vertex_gemini_score(bid, profile_docs)
-        else:
-            score, rationale, resumo = _heuristic_score(bid, profile_docs)
-    except Exception as exc:
-        logger.warning("Falha no analisador LLM (%s). Usando fallback heuristico.", exc)
-        score, rationale, resumo = _heuristic_score(bid, profile_docs)
-
+    score, rationale, resumo = _vertex_gemini_score(bid, profile_docs)
     analysis_time = time.perf_counter() - start
     return AnalyzedBid(
         **bid.model_dump(),

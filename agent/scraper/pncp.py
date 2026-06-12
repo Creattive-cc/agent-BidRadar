@@ -485,7 +485,7 @@ def _build_bid_and_row(
 def scrape_pncp() -> list[ScrapedBid]:
     start = time.perf_counter()
     end_date = date.today()
-    data_inicial = (end_date - timedelta(days=2)).strftime("%Y%m%d")
+    data_inicial = (end_date - timedelta(days=7)).strftime("%Y%m%d")
     data_final = end_date.strftime("%Y%m%d")
 
     modalidades = _parse_modalidades()

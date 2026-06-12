@@ -1,59 +1,51 @@
-Catálogo de Soluções Corporativas: Ecossistema Google
-Este documento oficial e estruturado apresenta uma visão detalhada do portfólio de soluções corporativas do Google. Ele foi desenhado para apoiar equipes técnicas e comerciais na compreensão da arquitetura, capacidades e modelos de licenciamento das principais plataformas.
---------------------------------------------------------------------------------
-1. Google Workspace
-1) Descrição da Solução O Google Workspace é um pacote abrangente de aplicativos em nuvem focado na produtividade, comunicação e colaboração empresarial. Ele unifica ferramentas fundamentais como Gmail, Google Drive, Meet, Agenda, Docs, Planilhas e Sites em um único ecossistema focado no trabalho em tempo real.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas O ecossistema permite comunicação por vídeo e chat, edição colaborativa de documentos e gestão de arquivos. As capacidades avançadas incluem Prevenção contra Perda de Dados (DLP), retenção de informações via Google Vault para eDiscovery e moderação de reuniões (enquetes, gravações, cancelamento de ruído). As limitações estão atreladas aos limites de cada pacote, variando a capacidade de armazenamento por usuário (de 30 GB até capacidades flexíveis) e o volume de participantes simultâneos no Google Meet (de 100 a 1000 pessoas).
-3) Detalhes sobre a Arquitetura e Uso Arquitetura Cloud-Native, suportando edição simultânea sem necessidade de instalações locais complexas. Possui suporte para acesso offline, compatibilidade com Microsoft Outlook, controle de endpoints corporativos (MDM) e integração de Single Sign-On (SSO).
-4) Diferenças Fundamentais de Licenciamento
-Business Starter: Focado em pequenas empresas, com 30 GB de armazenamento por usuário e limite de 100 participantes no Google Meet.
-Business Standard: Amplia a capacidade para 2 TB por usuário, introduz os Drives Compartilhados (de equipe) e eleva as reuniões para até 150 participantes com funcionalidade de gravação.
-Business Plus: Fornece 5 TB por usuário, reuniões para até 500 participantes (com controle de presença) e inclui o Google Vault para governança de dados e auditoria.
-Enterprise (Standard e Plus): Necessário para organizações acima de 300 usuários ou com altíssima exigência de governança. Oferece armazenamento escalável (flexível), até 1000 participantes no Meet, transmissões ao vivo em domínio, Prevenção contra Perda de Dados (DLP) rigorosa e gerenciamento avançado de endpoints.
---------------------------------------------------------------------------------
-2. Google Cloud Platform (GCP)
-1) Descrição da Solução O Google Cloud Platform é a infraestrutura global de computação em nuvem do Google voltada para corporações. Engloba um vasto leque de serviços de infraestrutura (IaaS), plataforma (PaaS), armazenamento massivo, análise de dados e Inteligência Artificial.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas Oferece serviços como Compute Engine (máquinas virtuais), Cloud Storage (armazenamento de objetos), Google Kubernetes Engine (GKE) para orquestração de contêineres e bancos de dados gerenciados (Cloud SQL, Spanner, AlloyDB). As capacidades avançadas incluem machine learning de ponta e infraestrutura dedicada (GPUs/TPUs). A principal limitação é a necessidade de expertise técnica (arquitetos de nuvem, SRE, DevOps) para configurar, orquestrar e evitar gargalos ou falhas de segurança no ambiente.
-3) Detalhes sobre a Arquitetura e Uso Sua infraestrutura baseia-se em uma rede global de data centers interconectados. Suporta arquiteturas desde o modelo tradicional lift-and-shift (migração de VMs) até microsserviços modernos e arquiteturas Serverless (como o Cloud Run). Possui soluções para nuvem híbrida e multicloud (Google Distributed Cloud).
-4) Diferenças Fundamentais de Licenciamento O GCP não utiliza licenças tradicionais de software restritivas. Seu modelo opera puramente sob consumo (Pay-as-you-go). Os níveis comerciais baseiam-se em:
-Uso Flexível (Sob Demanda): O faturamento ocorre estritamente pelos recursos (computação, rede, armazenamento) utilizados por segundo/minuto.
-Contratos de Uso Comprometido (Committed Use): Empresas firmam compromissos de 1 a 3 anos de uso de processamento ou memória em troca de vantagens e descontos comerciais substanciais, essenciais para cargas de trabalho previsíveis.
-Enterprise Agreements: Para grandes volumes, garantindo suporte premium e SLAs rigorosos.
---------------------------------------------------------------------------------
-3. Chrome Enterprise
-1) Descrição da Solução Uma solução corporativa que transforma o navegador Google Chrome (e o sistema operacional ChromeOS) em um ambiente de trabalho altamente seguro, agregando controle centralizado e visibilidade de frota para a equipe de TI.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas Oferece proteção contra phishing e malwares baseada na nuvem, isolamento de abas (sandboxing avançado) para que ameaças não infectem o dispositivo e controle rigoroso de extensões. Na versão premium, possui DLP (Prevenção contra Perda de Dados) que impede o usuário de copiar, colar ou baixar arquivos confidenciais. A limitação é que o monitoramento completo de navegação exige conectividade e login no perfil corporativo para a sincronização integral das regras.
-3) Detalhes sobre a Arquitetura e Uso A arquitetura é orquestrada diretamente da nuvem via Google Admin Console, eliminando a necessidade de servidores locais. As políticas são enviadas e aplicadas remotamente e de forma universal a dispositivos Windows, macOS, Linux, ChromeOS, iOS e Android.
-4) Diferenças Fundamentais de Licenciamento
-Chrome Enterprise Core (Gratuito): Permite a gestão básica do navegador via nuvem, padronização de políticas, controle de extensões autorizadas e visibilidade da versão dos navegadores na empresa.
-Chrome Enterprise Premium (Pago): Adiciona camadas profundas de segurança, incluindo DLP avançado, bloqueio e auditoria baseados no contexto do dispositivo (Zero Trust - Confiança Zero) e regras personalizadas rigorosas. Para dispositivos físicos (Chromebooks), existe também o Chrome Enterprise Upgrade, que permite gestão em modo quiosque e bloqueio de hardware.
---------------------------------------------------------------------------------
-4. Google Analytics (GA4)
-1) Descrição da Solução O Google Analytics 4 (GA4) é a plataforma corporativa principal para medição de jornada digital, análise de tráfego web, uso de aplicativos móveis e comportamento do consumidor.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas Baseia-se em um modelo de dados orientado a eventos (tudo é um evento, e não apenas uma sessão de página), permitindo rastreamento multiplataforma (app e web juntos). As limitações da versão base incluem a aplicação de amostragem de dados (sampling) quando há um grande volume de tráfego, defasagem no tempo de atualização da informação e limites de retenção de dados históricos.
-3) Detalhes sobre a Arquitetura e Uso O GA4 coleta eventos através de tags (Google Tag Manager) ou SDKs (Firebase). Uma característica central de sua arquitetura é a integração nativa com o data warehouse Google BigQuery (GCP), permitindo que empresas exportem seus dados brutos de navegação diariamente para realizar consultas complexas via SQL, contornando as limitações da interface padrão.
-4) Diferenças Fundamentais de Licenciamento
-Standard (Free): Oferece os recursos padrão, acesso à interface e integração com BigQuery, mas está sujeita a limites rigorosos de cotas diárias de processamento, retenção curta de dados e aplicação de amostragem em relatórios de alto tráfego.
-Analytics 360 (Enterprise): Licenciamento voltado para grandes corporações, que remove grande parte das restrições. Oferece relatórios não amostrados (unsampled), eleva massivamente os limites de exportação para o BigQuery, fornece histórico estendido e garante SLAs contratuais para o frescor dos dados.
---------------------------------------------------------------------------------
-5. Looker
-1) Descrição da Solução Looker é a plataforma Enterprise de Business Intelligence (BI), exploração analítica e construção de aplicativos de dados nativa do Google Cloud.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas Sua principal capacidade é atuar como uma "camada semântica" centralizada, onde as métricas de negócio são definidas em código (LookML) uma única vez, garantindo que toda a empresa visualize os mesmos KPIs. Possui funcionalidades avançadas de análises incorporadas (embedded analytics) em portais externos.
-3) Detalhes sobre a Arquitetura e Uso Diferente das ferramentas tradicionais de BI que extraem dados para a memória da própria ferramenta, a arquitetura do Looker é 100% in-database. Ele processa as consultas formulando SQL otimizado em tempo real diretamente nos bancos de dados na nuvem (como o BigQuery), eliminando os silos de dados.
-4) Diferenças Fundamentais de Licenciamento O licenciamento do Looker (distinto da versão simplificada Looker Studio) estrutura-se pela plataforma hospedada (Standard ou Enterprise) somada a uma arquitetura de assentos nomeados baseados em permissão: Developer (cria a modelagem semântica em código), Standard (cria e explora dashboards) e Viewer (apenas consumo de relatórios já prontos).
---------------------------------------------------------------------------------
-6. Gemini (Ecossistema Corporativo de IA)
-1) Descrição da Solução O Gemini é a fronteira de inteligência artificial generativa e agêntica do Google. Ele atua sob duas grandes frentes empresariais: o Gemini for Google Workspace (conhecido como Workspace Intelligence, focado em produtividade) e a Gemini Enterprise Agent Platform no GCP (focada em desenvolvimento, infraestrutura e criação de agentes corporativos).
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas No Workspace, a funcionalidade "Ask Gemini" atua como uma linha de comando unificada, capaz de ler contextos complexos cruzando dados do Gmail, Docs, Drive, Chat e Calendar sem a necessidade de copiar/colar informações. Pode gerar apresentações completas no Slides ou analisar dados no Sheets. No GCP, ele oferece o Gemini Code Assist e o Customer Experience Agent Studio para construção de agentes customizados. A grande limitação do Workspace Intelligence é a dependência da organização documental da empresa ("silos de contexto"): se o Google Drive estiver caótico, as respostas da IA refletirão essa desorganização.
-3) Detalhes sobre a Arquitetura e Uso Opera como uma camada semântica que indexa o perímetro de dados empresariais em tempo real, semelhante ao motor de busca do Google, mas de uso exclusivo e privado da corporação. Para segurança, o Gemini respeita integralmente as políticas de compartilhamento, criptografia client-side e permissões de usuários de origem; ele não pode acessar um documento que o funcionário não tenha permissão de ver.
-4) Diferenças Fundamentais de Licenciamento Não está incluído nos planos base do Workspace. Exige a aquisição de licenças Add-on (complementares) acima da edição empresarial base:
-Planos Add-on: Os complementos de licenciamento corporativo englobam pacotes como AI Expanded Access, AI Ultra Access, e para setor educacional Google AI Pro for Education ou Teaching and Learning. Administradores possuem controle de ligar/desligar a funcionalidade por unidade organizacional e excluir bases específicas do índice.
---------------------------------------------------------------------------------
-7. Plataforma Google Maps (Google Maps Platform)
-1) Descrição da Solução Divisão voltada para integração corporativa de dados geoespaciais e inteligência de localização (B2B), permitindo que empresas e desenvolvedores insiram mapas dinâmicos, rotas, locais e dados ambientais em seus próprios aplicativos web ou sistemas logísticos.
-2) Principais Capacidades, Limitações e Funcionalidades Técnicas É dividida em produtos como Maps (renderização estática e imersiva), Routes (roteirização complexa, matrizes de distância para otimização de frotas), Places (autocompletar endereços e geocodificação) e Environment (dados solares, pólen e qualidade do ar). A limitação de uso dá-se estritamente pela cota de chamadas de APIs e capacidade de processamento que a empresa licenciou.
-3) Detalhes sobre a Arquitetura e Uso O consumo da infraestrutura dá-se mediante o uso de Interfaces de Programação (APIs) e SDKs (para Android, iOS ou Web). A gestão do acesso é assegurada através da emissão de credenciais na nuvem, que protegem contra usos indevidos restringindo requisições apenas a servidores e aplicativos autorizados pela empresa.
-4) Diferenças Fundamentais de Licenciamento Funciona no modelo Pay-as-you-go com descontos por volume automatizados, possuindo limites mensais de utilização gratuita inicial. Adicionalmente, as contas não-faturadas exclusivamente na Índia podem optar por um modelo de planos de assinatura baseados no grau de necessidades de capacidades e uso de APIs (com limites de requisições combinadas):
-Starter: Permite o uso base de APIs selecionadas de Mapas, Rotas e Locais com uma franquia unificada de até 50.000 requisições mensais.
-Essentials: Eleva a franquia de uso das APIs do plano Starter para até 100.000 chamadas combinadas por mês.
-Pro: Pacote avançado (inclui APIs robustas de otimização de rotas e pesquisa de endereços) fornecendo capacidade de até 250.000 chamadas ao mês. Demandas de extrema volumetria recebem contratos corporativos adaptados (Enterprise) com controle máximo e descontos progressivos.
+# Portfólio de Produtos e Soluções
+
+## 1. Edux.me Plus — Plataforma SaaS de Gestão Escolar
+
+Plataforma SaaS completa para gestão administrativa e pedagógica de redes municipais de ensino, voltada a secretarias municipais de educação.
+
+### Funcionalidades principais
+- Cadastro e gestão de alunos, professores, turmas e escolas
+- Controle de matrículas, transferências e histórico escolar
+- Registro de frequência e ocorrências disciplinares
+- Lançamento e acompanhamento de notas e avaliações
+- Emissão de documentos (declarações, históricos, boletins)
+- Relatórios gerenciais e indicadores de desempenho da rede
+- Painel centralizado para secretaria de educação acompanhar toda a rede
+
+### Termos relacionados
+SaaS, gestão escolar, sistema escolar, secretaria de educação, matrícula, frequência, boletim, histórico escolar, rede municipal de ensino, software educacional, plataforma educacional, gestão de rede de ensino, administração escolar, SIGED, sistema de gestão educacional
+
+---
+
+## 2. Konectar.me — Plataforma PaaS de Recomposição de Aprendizagem
+
+Programa educacional PaaS de recomposição de aprendizagem e recuperação do fluxo escolar, alinhado à Base Nacional Comum Curricular (BNCC). Atende redes públicas com distorção idade/série.
+
+### Funcionalidades principais
+- Conteúdos pedagógicos customizados por série e disciplina
+- Videoaulas, atividades gamificadas, apostilas e mapas mentais
+- Atendimento ao Ensino Fundamental I, II e Ensino Médio
+- Diagnóstico de aprendizagem e trilhas personalizadas por aluno
+- Painel de acompanhamento para professores e gestores
+- Alinhamento às competências e habilidades da BNCC
+
+### Termos relacionados
+PaaS, recomposição de aprendizagem, distorção idade-série, BNCC, conteúdo didático, material didático, plataforma de aprendizagem, ensino fundamental, ensino médio, recuperação de aprendizagem, fluxo escolar, videoaula, gamificação educacional, programa educacional, aprendizagem adaptativa
+
+---
+
+## 3. Projeto SAEB — Solução para Avaliação Educacional
+
+Solução tecnológica para preparação de alunos e redes de ensino para o SAEB (Sistema de Avaliação da Educação Básica), principal avaliação do MEC para medir a qualidade da educação básica no Brasil.
+
+### Funcionalidades principais
+- Simulados educacionais alinhados às matrizes de referência do SAEB
+- Conteúdos didáticos focados nas habilidades avaliadas pelo SAEB
+- Processamento e leitura de cartões-resposta
+- Dashboards analíticos para secretarias acompanharem resultados por escola, turma e distrito
+- Relatórios de desempenho comparativo entre unidades da rede
+- Identificação de fragilidades por habilidade e direcionamento de intervenções pedagógicas
+
+### Termos relacionados
+SAEB, avaliação educacional, avaliação externa, simulado, IDEB, proficiência, matriz de referência, Língua Portuguesa, Matemática, cartão-resposta, diagnóstico educacional, analytics educacional, dashboard educacional, avaliação em larga escala, Prova Brasil, ANA
