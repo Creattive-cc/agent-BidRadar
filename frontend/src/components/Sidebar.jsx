@@ -60,7 +60,7 @@ const navItems = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -73,7 +73,7 @@ export default function Sidebar() {
   const inactiveClass = "text-gray-500 hover:bg-gray-100 hover:text-gray-700";
 
   return (
-    <aside className="w-52 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col">
+    <aside className={`fixed inset-y-0 left-0 z-40 w-52 flex-shrink-0 bg-white border-r border-gray-100 flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:z-auto ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Logo */}
       <div className="px-4 py-5">
         <div className="flex items-center gap-2">

@@ -150,14 +150,14 @@ export default function Filters() {
   if (!filters) return <div className="p-8 text-sm text-gray-400">Carregando...</div>;
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Filtros e Regras</h1>
         <p className="text-sm text-gray-500 mt-0.5">Configure aqui os indicadores a serem analisados</p>
       </div>
 
       {/* Filter panels */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {/* Termos de exclusão */}
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="flex items-center justify-between mb-2">

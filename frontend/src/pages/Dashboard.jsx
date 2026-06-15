@@ -292,7 +292,7 @@ export default function Dashboard() {
   const filtersActive = dateFilter !== "all" || selectedProducts.size > 0;
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Visão Geral</h1>
@@ -323,7 +323,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { icon: KPI_ICONS.bids, label: "Editais Monitorados", value: displayStats?.total_bids?.toLocaleString("pt-BR") ?? "—" },
           { icon: KPI_ICONS.hours, label: "Horas de Leitura Poupadas", value: displayStats ? `${displayStats.hours_saved}h` : "—" },
@@ -343,8 +343,8 @@ export default function Dashboard() {
       </div>
 
       {/* Funil + Logs */}
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-white rounded-xl border border-gray-100 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 bg-white rounded-xl border border-gray-100 p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4">Análise de Funil</h2>
           <div className="space-y-2">
             <FunnelBar label="Total Captado" value={funnel.captured ?? 0} max={funnelMax} />

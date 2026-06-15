@@ -332,7 +332,7 @@ function ProductRow({ product, onSave, onDelete }) {
   if (editing) {
     return (
       <div className="bg-white border border-violet-200 rounded-xl p-4 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Nome</label>
             <input
@@ -434,7 +434,7 @@ function NewProductForm({ onCreated }) {
   return (
     <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 space-y-3">
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Nome</label>
           <input value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-violet-400 bg-white" />
@@ -503,18 +503,18 @@ export default function Profile() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50 p-6 space-y-10">
+    <div className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6 space-y-10">
 
       {/* ── Documentos do Perfil ── */}
       <section>
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Perfil da Empresa</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Documentos lidos pelo Gemini para avaliar aderência de cada licitação.
             </p>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
             <button
               onClick={() => setShowReprocess(true)}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition-colors"
