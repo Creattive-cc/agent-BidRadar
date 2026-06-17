@@ -376,6 +376,14 @@ export default function Opportunities() {
                           <span className="text-gray-400">Início:</span> {fmtDateTime(bid.data_inicio_propostas)}
                         </span>
                       )}
+                      {bid.data_abertura_propostas && bid.data_abertura_propostas !== bid.deadline && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-gray-400">Abertura:</span> {fmtDateTime(bid.data_abertura_propostas)}
+                        </span>
+                      )}
                       {bid.deadline && (
                         <span className={`flex items-center gap-1 ${urgent ? "text-red-500 font-medium" : ""}`}>
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,14 +395,6 @@ export default function Opportunities() {
                               ({days > 0 ? `${days}d` : "Vencido"})
                             </span>
                           )}
-                        </span>
-                      )}
-                      {bid.data_abertura_propostas && bid.data_abertura_propostas !== bid.deadline && (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-gray-400">Abertura:</span> {fmtDateTime(bid.data_abertura_propostas)}
                         </span>
                       )}
                     </div>
