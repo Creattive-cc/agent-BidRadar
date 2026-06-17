@@ -1,11 +1,13 @@
 """Modulo para download de PDFs de editais e upload para o GCS."""
 
+import io
 import re
 import time
 from datetime import datetime
 from typing import Any
 from urllib.parse import urljoin
 
+import pypdf
 import requests
 from google.cloud import bigquery, storage
 from requests.adapters import HTTPAdapter
@@ -17,6 +19,32 @@ from agent.logging_utils import get_logger
 logger = get_logger("bidradar.downloader")
 
 GCS_BUCKET_NAME = "creattive-licitacoes-dev-editais"
+
+_WORDS_PER_MINUTE = 200  # velocidade média de leitura adulto, texto técnico/legal
+
+
+def _count_words_from_pdf(pdf_bytes: bytes) -> int | None:
+    """Extrai texto de um PDF e retorna a contagem de palavras."""
+    try:
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        text = " ".join(
+            page.extract_text() or "" for page in reader.pages
+        )
+        return len(text.split())
+    except Exception as exc:
+        logger.warning("Falha ao extrair texto do PDF: %s", exc)
+        return None
+
+
+def _update_word_count_bids(url: str, word_count: int) -> None:
+    """Atualiza bids.word_count pelo URL do edital (chave de join entre BQ e SQLite)."""
+    try:
+        from agent.models import Bid, SessionLocal
+        with SessionLocal() as session:
+            session.query(Bid).filter(Bid.url == url).update({"word_count": word_count})
+            session.commit()
+    except Exception as exc:
+        logger.warning("Falha ao atualizar word_count no bids (url=%s): %s", url, exc)
 
 # ---------------------------------------------------------------------------
 # Clientes GCP — inicializados sob demanda
@@ -289,6 +317,11 @@ def _process_pncp_bid(
             if not pdf_bytes:
                 continue
 
+            if not first_gcs_path:
+                wc = _count_words_from_pdf(pdf_bytes)
+                if wc:
+                    _update_word_count_bids(url, wc)
+
             uploaded_path = _upload_to_gcs(pdf_bytes, gcs_path)
             if uploaded_path:
                 downloaded_count += 1
@@ -373,6 +406,10 @@ def download_pending_pdfs(limit: int = 50) -> dict[str, int]:
             if not pdf_bytes:
                 stats["errors"] += 1
                 continue
+
+            wc = _count_words_from_pdf(pdf_bytes)
+            if wc:
+                _update_word_count_bids(url, wc)
 
             uploaded_path = _upload_to_gcs(pdf_bytes, gcs_path)
             if not uploaded_path:

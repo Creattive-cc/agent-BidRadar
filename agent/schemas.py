@@ -6,6 +6,9 @@ class ScrapedBid(BaseModel):
     agency: str
     estimated_value: float | None = None
     deadline: str | None = None
+    data_publicacao: str | None = None
+    data_inicio_propostas: str | None = None
+    data_abertura_propostas: str | None = None
     url: str
     source_site: str
     find_time_seconds: float = 0.0

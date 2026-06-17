@@ -7,6 +7,17 @@ function daysRemaining(deadline) {
   return diff;
 }
 
+function fmtDate(val) {
+  if (!val) return null;
+  return new Date(val).toLocaleDateString("pt-BR");
+}
+
+function fmtDateTime(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 function formatValue(v) {
   if (!v) return null;
   if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(2).replace(".", ",")}M`;
@@ -336,28 +347,57 @@ export default function Opportunities() {
                       {bid.source_site}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                    {bid.deadline && (
-                      <span className={`flex items-center gap-1 ${urgent ? "text-red-500 font-medium" : ""}`}>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        {new Date(bid.deadline).toLocaleDateString("pt-BR")}
-                        {days !== null && (
-                          <span className={urgent ? "text-red-500" : "text-gray-400"}>
-                            ({days > 0 ? `${days} dias restantes` : "Vencido"})
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {bid.estimated_value && (
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        {formatValue(bid.estimated_value)} Estimado
-                      </span>
-                    )}
+                  <div className="mt-2 space-y-1 text-xs text-gray-500">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {bid.data_publicacao && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="text-gray-400">Publicação:</span> {fmtDate(bid.data_publicacao)}
+                        </span>
+                      )}
+                      {bid.estimated_value && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          {formatValue(bid.estimated_value)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {bid.data_inicio_propostas && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-gray-400">Início:</span> {fmtDateTime(bid.data_inicio_propostas)}
+                        </span>
+                      )}
+                      {bid.deadline && (
+                        <span className={`flex items-center gap-1 ${urgent ? "text-red-500 font-medium" : ""}`}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className={urgent ? "text-red-400" : "text-gray-400"}>Encerramento:</span> {fmtDateTime(bid.deadline)}
+                          {days !== null && (
+                            <span className={urgent ? "text-red-500" : "text-gray-400"}>
+                              ({days > 0 ? `${days}d` : "Vencido"})
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {bid.data_abertura_propostas && bid.data_abertura_propostas !== bid.deadline && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-gray-400">Abertura:</span> {fmtDateTime(bid.data_abertura_propostas)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

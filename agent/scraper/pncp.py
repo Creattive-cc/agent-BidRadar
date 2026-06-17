@@ -442,16 +442,19 @@ def _build_bid_and_row(
     )
     estimated_value = item.get("valorTotalEstimado") or item.get("valorTotal")
     data_publicacao = _parse_date_str(item.get("dataPublicacaoPncp"))
-    data_abertura = _parse_datetime_str(
-        item.get("dataEncerramentoProposta") or item.get("dataAberturaProposta")
-    )
+    data_inicio_propostas = _parse_datetime_str(item.get("dataInicioRecebimentoPropostas"))
+    data_encerramento = item.get("dataEncerramentoProposta")
+    data_abertura_raw = item.get("dataAberturaProposta")
+    data_abertura_propostas = _parse_datetime_str(data_abertura_raw)
 
     bid = ScrapedBid(
         title=str(title)[:500],
         agency=str(agency)[:255],
         estimated_value=estimated_value,
-        deadline=item.get("dataEncerramentoProposta")
-        or item.get("dataAberturaProposta"),
+        deadline=data_encerramento or data_abertura_raw,
+        data_publicacao=data_publicacao,
+        data_inicio_propostas=data_inicio_propostas,
+        data_abertura_propostas=data_abertura_propostas,
         url=url,
         source_site="ComprasNet/PNCP",
         find_time_seconds=0.0,
@@ -468,7 +471,7 @@ def _build_bid_and_row(
         if estimated_value is not None
         else None,
         "data_publicacao": data_publicacao,
-        "data_abertura": data_abertura,
+        "data_abertura": _parse_datetime_str(data_encerramento or data_abertura_raw),
         "status": "publicado",
         "gcs_path": None,
         "created_at": datetime.now(timezone.utc).isoformat(),

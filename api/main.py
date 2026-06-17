@@ -280,7 +280,8 @@ def get_stats(
     analyzed = sum(1 for b in bids if b.analysis_time_seconds > 0)
     hot = sum(1 for b in bids if b.score >= 70)
     total_value = sum(b.estimated_value or 0 for b in bids if b.score >= 70)
-    hours_saved = round(total * 0.25, 1)
+    total_words = sum(b.word_count if b.word_count else 500 for b in bids)
+    hours_saved = round(total_words / 200 / 60, 1)
     return {
         "total_bids": total,
         "hours_saved": hours_saved,
@@ -547,6 +548,9 @@ def _bid_to_dict(row: Bid) -> dict:
         "agency": row.agency,
         "estimated_value": row.estimated_value,
         "deadline": row.deadline,
+        "data_publicacao": row.data_publicacao,
+        "data_inicio_propostas": row.data_inicio_propostas,
+        "data_abertura_propostas": row.data_abertura_propostas,
         "url": row.url,
         "source_site": row.source_site,
         "find_time_seconds": row.find_time_seconds,
@@ -554,6 +558,7 @@ def _bid_to_dict(row: Bid) -> dict:
         "score": row.score,
         "justification": row.justification,
         "resumo": row.resumo,
+        "word_count": row.word_count,
         "created_at": row.created_at.isoformat(),
     }
 

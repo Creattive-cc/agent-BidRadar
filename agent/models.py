@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Boolean, create_engine, String, Float, DateTime, Integer, Text
+from sqlalchemy import Boolean, create_engine, String, Float, DateTime, Integer, Text, text
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, sessionmaker
 from agent.config import settings
 
@@ -14,6 +14,9 @@ class Bid(Base):
     agency: Mapped[str] = mapped_column(String(255))
     estimated_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     deadline: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    data_publicacao: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    data_inicio_propostas: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    data_abertura_propostas: Mapped[str | None] = mapped_column(String(30), nullable=True)
     url: Mapped[str] = mapped_column(String(1000))
     source_site: Mapped[str] = mapped_column(String(100))
     find_time_seconds: Mapped[float] = mapped_column(Float, default=0)
@@ -21,6 +24,7 @@ class Bid(Base):
     score: Mapped[float] = mapped_column(Float)
     justification: Mapped[str] = mapped_column(Text)
     resumo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -102,3 +106,16 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 def init_db() -> None:
     settings.db_file.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    # Migração incremental: adiciona word_count se não existir
+    with engine.connect() as conn:
+        for col, typedef in [
+            ("word_count", "INTEGER"),
+            ("data_publicacao", "VARCHAR(30)"),
+            ("data_inicio_propostas", "VARCHAR(30)"),
+            ("data_abertura_propostas", "VARCHAR(30)"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE bids ADD COLUMN {col} {typedef}"))
+                conn.commit()
+            except Exception:
+                pass

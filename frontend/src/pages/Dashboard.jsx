@@ -274,7 +274,7 @@ export default function Dashboard() {
   const displayStats = hasData
     ? {
         total_bids: filteredBids.length,
-        hours_saved: Math.round(filteredBids.length * 0.25 * 10) / 10,
+        hours_saved: Math.round(filteredBids.reduce((s, b) => s + (b.word_count ?? 500), 0) / 200 / 60 * 10) / 10,
         opportunities: filteredBids.filter((b) => b.score >= 70).length,
         total_value: filteredBids.reduce((s, b) => s + (b.score >= 70 ? b.estimated_value || 0 : 0), 0),
         funnel: {
