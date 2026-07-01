@@ -10,7 +10,7 @@ from agent.downloader import download_pending_pdfs
 from agent.logging_utils import get_logger
 from agent.models import Bid, SessionLocal, init_db
 from agent.schemas import ScrapedBid
-from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao, scrape_pncp
+from agent.scraper import scrape_bll, scrape_comprasnet, scrape_conlicitacao, scrape_pncp, scrape_universo
 
 logger = get_logger("bidradar.runner")
 
@@ -88,6 +88,8 @@ def run_once() -> dict[str, int]:
         scrapers.append(("BLL", scrape_bll))
     if settings.enable_conlicitacao:
         scrapers.append(("ConLicitação", scrape_conlicitacao))
+    if settings.enable_universo:
+        scrapers.append(("Universo", scrape_universo))
 
     all_bids: list[ScrapedBid] = []
     for name, scraper in scrapers:

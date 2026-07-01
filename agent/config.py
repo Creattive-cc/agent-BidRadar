@@ -25,6 +25,13 @@ class Settings(BaseModel):
     enable_conlicitacao: bool = (
         os.getenv("BIDRADAR_ENABLE_CONLICITACAO", "false").lower() == "true"
     )
+    enable_universo: bool = (
+        os.getenv("BIDRADAR_ENABLE_UNIVERSO", "false").lower() == "true"
+    )
+    conlicitacao_user: str = os.getenv("BIDRADAR_CONLICITACAO_USER", "")
+    conlicitacao_pass: str = os.getenv("BIDRADAR_CONLICITACAO_PASS", "")
+    universo_user: str = os.getenv("BIDRADAR_UNIVERSO_USER", "")
+    universo_pass: str = os.getenv("BIDRADAR_UNIVERSO_PASS", "")
     # Codigos de modalidade PNCP (separados por virgula). Padrao: principais da Lei 14.133.
     pncp_modalidades: str = os.getenv(
         "BIDRADAR_PNCP_MODALIDADES",
