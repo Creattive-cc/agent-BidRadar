@@ -23,9 +23,6 @@ export default function Upload() {
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState(null);
-  const [title, setTitle] = useState("");
-  const [agency, setAgency] = useState("");
-  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -39,7 +36,6 @@ export default function Upload() {
     setError(null);
     setResult(null);
     setFile(f);
-    if (!title) setTitle(f.name.replace(/\.pdf$/i, "").replace(/[_-]/g, " "));
   }
 
   function onDrop(e) {
@@ -56,7 +52,7 @@ export default function Upload() {
     setError(null);
     setResult(null);
     try {
-      const bid = await uploadAnalyzeBid({ file, title, agency, url });
+      const bid = await uploadAnalyzeBid({ file });
       setResult(bid);
     } catch (err) {
       setError(err.message || "Erro ao analisar o PDF.");
@@ -67,9 +63,6 @@ export default function Upload() {
 
   function reset() {
     setFile(null);
-    setTitle("");
-    setAgency("");
-    setUrl("");
     setResult(null);
     setError(null);
   }
@@ -134,42 +127,6 @@ export default function Upload() {
                 <p className="text-xs text-gray-400">Máx. 20 MB</p>
               </div>
             )}
-          </div>
-
-          {/* Campos opcionais */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Título do edital</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Preenchido automaticamente pelo nome do arquivo"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Órgão / Entidade</label>
-                <input
-                  type="text"
-                  value={agency}
-                  onChange={(e) => setAgency(e.target.value)}
-                  placeholder="Ex: Prefeitura de São Paulo"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">URL do edital (opcional)</label>
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-300"
-                />
-              </div>
-            </div>
           </div>
 
           {error && (
