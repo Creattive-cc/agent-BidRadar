@@ -37,7 +37,7 @@ def _parse_score_json_text(raw: str) -> tuple[float, str]:
     return max(0.0, min(100.0, score)), justification
 
 
-def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple[float, str]:
+def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str], pdf_text: str | None = None) -> tuple[float, str]:
     from google import genai as gai
     from google.genai import types as gtypes
 
@@ -72,6 +72,12 @@ def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str]) -> tuple
         justification: str
 
     profile_text = "\n\n".join(f"## {name}\n{content}" for name, content in profile_docs.items())
+
+    _pdf_section = ""
+    if pdf_text:
+        _pdf_text_truncated = pdf_text[:12000]
+        _pdf_section = f"\n\nConteudo extraido do edital (PDF):\n{_pdf_text_truncated}\n"
+
     base_prompt = f"""Voce e um analista senior de licitacoes publicas avaliando oportunidades para uma empresa de tecnologia educacional.
 
 Retorne um JSON com tres campos:
@@ -105,7 +111,7 @@ Licitacao a analisar:
 - prazo: {bid.deadline}
 - url: {bid.url}
 - origem: {bid.source_site}
-"""
+{_pdf_section}"""
 
     # Desliga thinking para Flash — Pro usa thinking por padrão com budget automático
     _is_flash = "flash" in settings.vertex_model.lower()
@@ -184,9 +190,9 @@ Licitacao a analisar:
         raise last_err or exc
 
 
-def score_bid_with_profile(bid: ScrapedBid, profile_docs: dict[str, str]) -> AnalyzedBid:
+def score_bid_with_profile(bid: ScrapedBid, profile_docs: dict[str, str], pdf_text: str | None = None) -> AnalyzedBid:
     start = time.perf_counter()
-    score, rationale, resumo = _vertex_gemini_score(bid, profile_docs)
+    score, rationale, resumo = _vertex_gemini_score(bid, profile_docs, pdf_text=pdf_text)
     analysis_time = time.perf_counter() - start
     return AnalyzedBid(
         **bid.model_dump(),

@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from agent.analyzer.gemini_analyzer import analyze_edital
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -702,6 +702,86 @@ def trigger_agent(_: User = Depends(get_current_user)) -> dict:
     import threading
     threading.Thread(target=run_once, daemon=False).start()
     return {"status": "accepted"}
+
+
+@app.post("/uploads/analyze-bid", status_code=200)
+def upload_analyze_bid(
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    agency: str = Form(default=""),
+    url: str = Form(default=""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    import io
+    import uuid
+    import pypdf
+    from agent.analyzer.matcher import score_bid_with_profile
+    from agent.company_profile import read_profile_files
+    from agent.schemas import ScrapedBid
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Envie um arquivo PDF.")
+
+    pdf_bytes = file.file.read()
+    if len(pdf_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="PDF muito grande. Limite: 20 MB.")
+
+    pdf_text = ""
+    word_count = None
+    try:
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        pages_text = [page.extract_text() or "" for page in reader.pages]
+        pdf_text = "\n".join(pages_text).strip()
+        word_count = len(pdf_text.split())
+    except Exception as exc:
+        logger.warning("Falha ao extrair texto do PDF: %s", exc)
+
+    bid_title = title.strip() or (file.filename.replace(".pdf", "").replace("_", " ")[:500])
+    fake_url = url.strip() or f"upload://{uuid.uuid4()}"
+
+    bid = ScrapedBid(
+        title=bid_title,
+        agency=agency.strip() or "Não informado",
+        estimated_value=None,
+        deadline=None,
+        url=fake_url,
+        source_site="Upload Manual",
+        find_time_seconds=0.0,
+    )
+
+    try:
+        profile_docs = read_profile_files()
+    except Exception:
+        profile_docs = {}
+
+    try:
+        analyzed = score_bid_with_profile(bid, profile_docs, pdf_text=pdf_text or None)
+    except Exception as exc:
+        logger.error("Erro ao analisar PDF via Gemini: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {exc}")
+
+    from datetime import timezone
+    db_bid = Bid(
+        title=analyzed.title,
+        agency=analyzed.agency,
+        estimated_value=analyzed.estimated_value,
+        deadline=analyzed.deadline,
+        url=analyzed.url,
+        source_site="Upload Manual",
+        find_time_seconds=0.0,
+        analysis_time_seconds=analyzed.analysis_time_seconds,
+        score=analyzed.score,
+        justification=analyzed.justification,
+        resumo=analyzed.resumo,
+        word_count=word_count,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(db_bid)
+    db.commit()
+    db.refresh(db_bid)
+
+    return _bid_to_dict(db_bid)
 
 
 @app.post("/admin/trigger", status_code=202)

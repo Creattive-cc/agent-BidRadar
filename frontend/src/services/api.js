@@ -86,6 +86,31 @@ export async function reprocessBids(minScore = 0) {
   }
 }
 
+// Upload & analyze bid PDF
+export async function uploadAnalyzeBid({ file, title = "", agency = "", url = "" }) {
+  const token = getToken();
+  const form = new FormData();
+  form.append("file", file);
+  form.append("title", title);
+  form.append("agency", agency);
+  form.append("url", url);
+  const res = await fetch(`${API_BASE}/uploads/analyze-bid`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (res.status === 401) {
+    localStorage.removeItem("br_token");
+    window.location.href = "/login";
+    return;
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Erro desconhecido");
+  }
+  return res.json();
+}
+
 // Company profile documents (DB-backed)
 export const fetchDocuments = () => request("/company-profile/documents");
 export const createDocument = (data) =>
