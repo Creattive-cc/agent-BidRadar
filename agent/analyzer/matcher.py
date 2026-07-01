@@ -78,28 +78,50 @@ def _vertex_gemini_score(bid: ScrapedBid, profile_docs: dict[str, str], pdf_text
         _pdf_text_truncated = pdf_text[:12000]
         _pdf_section = f"\n\nConteudo extraido do edital (PDF):\n{_pdf_text_truncated}\n"
 
-    base_prompt = f"""Voce e um analista senior de licitacoes publicas avaliando oportunidades para uma empresa de tecnologia educacional.
+    base_prompt = f"""Voce e um analista senior de licitacoes publicas com 15 anos de experiencia, avaliando oportunidades para uma empresa de tecnologia educacional.
 
 Retorne um JSON com tres campos:
 
 1. "score" (0-100): aderencia do edital ao perfil da empresa.
-   - 90-100: objeto identico ao core da empresa, sem restricoes
-   - 70-89: alta aderencia, 1-2 pontos de atencao menores
-   - 50-69: aderencia parcial, exige avaliar riscos
+   - 90-100: objeto identico ao core da empresa, habilitacao alcancavel, sem impeditivos
+   - 70-89: alta aderencia, 1-2 pontos de atencao superaveis
+   - 50-69: aderencia parcial, riscos relevantes a avaliar antes de decidir
    - 30-49: baixa aderencia, apenas tangencia a atuacao da empresa
-   - 0-29: sem aderencia ou restricoes impeditivas (obra civil, saude, transporte, etc.)
+   - 0-29: sem aderencia ou com impedimento real (obra civil, saude, transporte, exclusivo fabricante, etc.)
 
-2. "resumo" (2-4 frases): descricao objetiva do edital.
-   - O que esta sendo contratado e para qual finalidade
-   - Principais exigencias tecnicas ou funcionais
-   - Valor estimado e modalidade
-   - Prazo de vigencia ou implantacao, se disponivel
+2. "resumo" (3-5 frases): descricao executiva do edital.
+   - O que exatamente esta sendo contratado e para qual finalidade
+   - Principais funcionalidades ou entregas esperadas
+   - Modalidade, valor estimado e prazo de vigencia ou implantacao
+   - Perfil do orgao contratante e contexto da necessidade
 
-3. "justification" (minimo 300 caracteres): analise detalhada em topicos numerados.
-   - Pontos de aderencia: quais aspectos do edital se alinham ao perfil da empresa e por que
-   - Pontos de atencao: riscos, exigencias que podem nao ser atendidas, prazos criticos
-   - Conclusao: recomendacao clara (participar / avaliar melhor / descartar)
-   Seja especifico — mencione produtos, funcionalidades, certificacoes e orgaos contratantes.
+3. "justification" (minimo 800 caracteres, estruturado em topicos): analise aprofundada cobrindo TODOS os itens abaixo.
+
+   1. OBJETO E ESCOPO
+      Descreva com precisao o que sera entregue: sistema, servico, consultoria, licenca, implantacao, treinamento, suporte. Quantas unidades, usuarios, localidades. Identifique se e fornecimento de solucao propria ou revenda.
+
+   2. ADERENCIA AO PERFIL
+      Quais produtos ou servicos do portfólio da empresa atendem diretamente ao objeto. Cite funcionalidades especificas que coincidem. Avalie se e fit total, parcial ou superficial.
+
+   3. HABILITACAO TECNICA
+      Liste os atestados de capacidade tecnica exigidos (quantidades, valores, prazos). Indique se a empresa provavelmente possui ou precisaria buscar. Mencione certificacoes, registros ou declaracoes especificas exigidas.
+
+   4. HABILITACAO ECONOMICO-FINANCEIRA
+      Capital social minimo exigido (se informado). Indices financeiros (liquidez, endividamento). Seguro-garantia ou caucao. Avalie se sao barreiras reais.
+
+   5. DIFERENCIAIS COMPETITIVOS
+      O que a empresa tem de diferencial para este edital: experiencia no setor publico, integracao com sistemas governamentais, referencias em orgaos similares, certificacoes relevantes, equipe tecnica especializada.
+
+   6. RISCOS E PONTOS DE ATENCAO
+      Requisitos tecnicos que podem nao ser atendidos. Prazos de implantacao agressivos. Penalidades contratuais elevadas. SLA exigente. Dependencia de terceiros. Restricoes geograficas. Clausulas de exclusividade de fabricante.
+
+   7. COMPETITIVIDADE E MERCADO
+      Tipo de disputa: ME/EPP exclusivo, ampla concorrencia, sistema de registro de preco, ata vigente. Estimativa de concorrentes potenciais. Nivel de dificuldade para vencer.
+
+   8. RECOMENDACAO FINAL
+      Decisao clara: PARTICIPAR / AVALIAR MELHOR / DESCARTAR. Justifique em 2-3 frases. Se "avaliar melhor", liste exatamente o que precisa ser verificado antes de decidir.
+
+   Seja cirurgico — cite nomes de sistemas, modulos, orgaos, CNAEs, valores e prazos reais quando disponiveis. Evite generalizacoes.
 
 Perfil da empresa:
 {profile_text}
@@ -120,18 +142,18 @@ Licitacao a analisar:
             _thinking = gtypes.ThinkingConfig(thinking_budget=0)
             _gen_config = gtypes.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 response_mime_type="application/json",
                 response_schema=_BidScoreSchema,
                 thinking_config=_thinking,
             )
             _fallback_config = gtypes.GenerateContentConfig(
-                temperature=0, max_output_tokens=4096, thinking_config=_thinking
+                temperature=0, max_output_tokens=8192, thinking_config=_thinking
             )
         else:
             _gen_config = gtypes.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 response_mime_type="application/json",
                 response_schema=_BidScoreSchema,
             )
@@ -139,7 +161,7 @@ Licitacao a analisar:
     except (AttributeError, TypeError):
         _gen_config = gtypes.GenerateContentConfig(
             temperature=0,
-            max_output_tokens=4096,
+            max_output_tokens=8192,
             response_mime_type="application/json",
             response_schema=_BidScoreSchema,
         )
