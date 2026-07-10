@@ -176,6 +176,11 @@ export default function Upload() {
                 {result.word_count && (
                   <p className="text-xs text-gray-400 mt-1">{result.word_count.toLocaleString("pt-BR")} palavras extraídas do PDF</p>
                 )}
+                {result.envolve_producao_conteudo === true && (
+                  <span className="inline-flex items-center mt-2 px-2 py-0.5 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    Produção de Conteúdo
+                  </span>
+                )}
               </div>
             </div>
 
@@ -190,6 +195,81 @@ export default function Upload() {
               <div className="mt-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Análise Detalhada</p>
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{result.justification}</p>
+              </div>
+            )}
+
+            {result.datas_prazos?.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Linha do Tempo
+                </p>
+                <div className="space-y-0">
+                  {result.datas_prazos.map((d, i) => (
+                    <div key={i} className="relative pl-5 pb-3 last:pb-0">
+                      {i < result.datas_prazos.length - 1 && (
+                        <span className="absolute left-[3px] top-2.5 bottom-0 w-px bg-violet-200" />
+                      )}
+                      <span className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full bg-violet-500" />
+                      <p className="text-sm">
+                        <span className="font-medium text-gray-900">{d.tipo}</span>
+                        <span className="text-gray-600"> — {d.data}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {result.itens_poc?.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Itens de Prova de Conceito / Amostra
+                </p>
+                <div className="space-y-2">
+                  {result.itens_poc.map((item, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                      <p className="text-sm font-medium text-gray-900">{item.descricao}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Ano escolar: {item.ano_escolar} • Quantidade: {item.quantidade}
+                      </p>
+                      {item.observacao && item.observacao !== "não aplicável" && (
+                        <p className="text-xs text-gray-500 italic mt-1">{item.observacao}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {result.checklist_documentos?.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Checklist de Documentos Obrigatórios
+                </p>
+                <div className="space-y-2">
+                  {result.checklist_documentos.map((doc, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      {doc.exigido_no_edital === true ? (
+                        <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{doc.nome}</p>
+                        {doc.observacao && (
+                          <p className="text-xs text-gray-400">{doc.observacao}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
