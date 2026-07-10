@@ -110,21 +110,21 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 def init_db() -> None:
     settings.db_file.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
-    # Migração incremental: adiciona word_count se não existir
-    with engine.connect() as conn:
-        for col, typedef in [
-            ("word_count", "INTEGER"),
-            ("resumo", "TEXT"),
-            ("data_publicacao", "VARCHAR(30)"),
-            ("data_inicio_propostas", "VARCHAR(30)"),
-            ("data_abertura_propostas", "VARCHAR(30)"),
-            ("datas_prazos", "TEXT"),
-            ("itens_poc", "TEXT"),
-            ("checklist_documentos", "TEXT"),
-            ("envolve_producao_conteudo", "BOOLEAN DEFAULT 0"),
-        ]:
-            try:
+    # Migração incremental: cada coluna usa sua própria transação, para que uma
+    # falha (coluna já existente) não aborte a transação e bloqueie as demais.
+    for col, typedef in [
+        ("word_count", "INTEGER"),
+        ("resumo", "TEXT"),
+        ("data_publicacao", "VARCHAR(30)"),
+        ("data_inicio_propostas", "VARCHAR(30)"),
+        ("data_abertura_propostas", "VARCHAR(30)"),
+        ("datas_prazos", "TEXT"),
+        ("itens_poc", "TEXT"),
+        ("checklist_documentos", "TEXT"),
+        ("envolve_producao_conteudo", "BOOLEAN DEFAULT FALSE"),
+    ]:
+        try:
+            with engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE bids ADD COLUMN {col} {typedef}"))
-                conn.commit()
-            except Exception:
-                pass
+        except Exception:
+            pass
