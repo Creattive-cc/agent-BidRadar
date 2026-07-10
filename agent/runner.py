@@ -1,9 +1,10 @@
+import json
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
-from agent.analyzer.matcher import score_bid_with_profile
+from agent.analyzer.gemini_analyzer import score_bid_with_profile
 from agent.company_profile import read_profile_files
 from agent.config import settings
 from agent.downloader import download_pending_pdfs
@@ -65,6 +66,10 @@ def _score_one(bid: ScrapedBid, profile: dict) -> Bid | None:
             score=analyzed.score,
             justification=analyzed.justification,
             resumo=analyzed.resumo,
+            datas_prazos=json.dumps([d.model_dump() for d in analyzed.datas_prazos]) if analyzed.datas_prazos else None,
+            itens_poc=json.dumps([i.model_dump() for i in analyzed.itens_poc]) if analyzed.itens_poc else None,
+            checklist_documentos=json.dumps([c.model_dump() for c in analyzed.checklist_documentos]) if analyzed.checklist_documentos else None,
+            envolve_producao_conteudo=analyzed.envolve_producao_conteudo,
         )
     except Exception as exc:
         logger.warning("Falha ao analisar bid '%s': %s", bid.title[:60], exc)

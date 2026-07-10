@@ -6,7 +6,7 @@ Fase 1 — descoberta rápida (google-genai SDK, sem retry):
   Testa modelos: gemini-3.1-pro → gemini-3-pro → gemini-2.5-pro
   Para cada, testa regiões: us-central1 → global
 
-Fase 2 — análise completa com score_bid_with_profile (LangChain).
+Fase 2 — análise completa com score_bid_with_profile (gemini_analyzer).
 
 Ao final, atualiza .env com modelo+região que funcionou.
 
@@ -115,19 +115,17 @@ print(f"Fase 1 OK — modelo={working_model}  location={working_location}")
 print(f"{'='*60}")
 
 # ── Fase 2: análise completa via score_bid_with_profile ─────────────────────
-os.environ["BIDRADAR_LLM_PROVIDER"] = "vertex_gemini"
 os.environ["BIDRADAR_VERTEX_MODEL"] = working_model
 os.environ["BIDRADAR_VERTEX_LOCATION"] = working_location
 os.environ["GOOGLE_CLOUD_LOCATION"] = working_location
 
 from agent.config import settings  # noqa: E402 (depois dos env vars)
-settings.llm_provider = "vertex_gemini"
 settings.vertex_model = working_model
 settings.vertex_location = working_location
 
 from agent.company_profile import read_profile_files  # noqa: E402
 from agent.schemas import ScrapedBid  # noqa: E402
-from agent.analyzer.matcher import score_bid_with_profile  # noqa: E402
+from agent.analyzer.gemini_analyzer import score_bid_with_profile  # noqa: E402
 
 profile = read_profile_files()
 print(f"Perfil carregado: {list(profile.keys())}")

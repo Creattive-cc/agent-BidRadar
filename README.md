@@ -29,7 +29,7 @@ O perfil da empresa é mantido em arquivos Markdown versionáveis em `company_pr
 | Camada                | Tecnologia                                              |
 | --------------------- | ------------------------------------------------------- |
 | Backend / API         | FastAPI + Uvicorn                                       |
-| Orquestração do agente | Python + LangChain / LangGraph + Google ADK            |
+| Orquestração do agente | Python (`agent/runner.py`)                            |
 | LLM                   | Vertex AI — Gemini 2.5 Pro (configurável)               |
 | Scrapers              | Playwright + requests                                   |
 | Persistência local    | SQLite (`data/licitacoes.db`) via SQLAlchemy            |
@@ -46,7 +46,7 @@ O perfil da empresa é mantido em arquivos Markdown versionáveis em `company_pr
 ```
 agent-BidRadar/
 ├── agent/
-│   ├── analyzer/          # gemini_analyzer + matcher heurístico
+│   ├── analyzer/          # gemini_analyzer.py — análise via Vertex AI (Gemini)
 │   ├── scraper/           # pncp, comprasnet, bll, conlicitacao
 │   ├── company_profile.py # leitura do perfil em .md
 │   ├── config.py          # Settings (pydantic + env)
@@ -158,18 +158,19 @@ uv run python -m agent.runner
 | `BIDRADAR_BQ_TABLE`       | `editais`                        |
 | `BIDRADAR_PUBSUB_TOPIC`   | `coleta-editais`                 |
 
-### Vertex AI + Google ADK
+### Vertex AI (Gemini)
 
 | Variável                       | Default                    | Descrição                              |
 | ------------------------------ | -------------------------- | -------------------------------------- |
-| `BIDRADAR_LLM_PROVIDER`        | `heuristic`                | `vertex_gemini` ou `heuristic`         |
 | `BIDRADAR_VERTEX_PROJECT_ID`   | —                          | Projeto que hospeda o Vertex            |
 | `BIDRADAR_VERTEX_LOCATION`     | `us-central1`              |                                        |
 | `BIDRADAR_VERTEX_MODEL`        | `gemini-2.5-pro`           | Ex.: `gemini-1.5-flash`, `gemini-2.5-pro` |
-| `GOOGLE_GENAI_USE_VERTEXAI`    | `true`                     | Obrigatório para o ADK falar com Vertex |
+| `GOOGLE_GENAI_USE_VERTEXAI`    | `true`                     | Usar Vertex AI em vez da API pública    |
 | `GOOGLE_CLOUD_PROJECT`         | —                          | Igual ao Vertex Project ID              |
 | `GOOGLE_CLOUD_LOCATION`        | `us-central1`              |                                        |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `service_account.json`   | Path para o JSON do service account     |
+
+A análise de aderência fica centralizada em `agent/analyzer/gemini_analyzer.py` (`score_bid_with_profile` para o ciclo do agente; `analyze_edital` para o fluxo Pub/Sub → BigQuery).
 
 ---
 
@@ -223,7 +224,7 @@ uv run python -m agent.runner
                                  └──────────────────┘
 ```
 
-Se a chamada ao Vertex falhar, o sistema cai automaticamente em **fallback heurístico** baseado em palavras-chave do `company_profile`. Logs estruturados em `logs/agent.log`.
+Se a chamada ao Vertex falhar, o edital recebe score 0 com justificativa de falha (sem travar o ciclo). Logs estruturados em `logs/agent.log`.
 
 ---
 
@@ -283,7 +284,7 @@ curl -H "Authorization: Bearer $TOKEN" https://bidradar-api-XXXX.run.app/health
 ## 🛠️ Troubleshooting
 
 **Vertex AI falha**
-→ Fallback heurístico é ativado automaticamente. Verifique `service_account.json`, role `Vertex AI User`, e `GOOGLE_GENAI_USE_VERTEXAI=true`.
+→ Verifique `service_account.json`, role `Vertex AI User`, `BIDRADAR_VERTEX_PROJECT_ID` e `GOOGLE_GENAI_USE_VERTEXAI=true`. Editais com falha de análise ficam com score 0.
 
 **Scraper retorna lista vazia**
 → Confirme que o `BIDRADAR_ENABLE_*` correspondente está em `true`. ConLicitação exige credenciais no Secret Manager. Para PNCP, verifique se `BIDRADAR_PNCP_MODALIDADES` tem códigos válidos.

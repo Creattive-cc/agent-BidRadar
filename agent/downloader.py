@@ -244,6 +244,64 @@ def _upload_to_gcs(pdf_bytes: bytes, gcs_path: str) -> str | None:
         return None
 
 
+def _get_gcs_path_bq(edital_id: str) -> str | None:
+    """Busca o gcs_path de um edital no BigQuery."""
+    try:
+        bq = _get_bq()
+        table_id = f"{settings.gcp_project_id}.{settings.bigquery_dataset}.{settings.bigquery_table}"
+        query = f"""
+            SELECT gcs_path
+            FROM `{table_id}`
+            WHERE edital_id = @edital_id
+            LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("edital_id", "STRING", edital_id),
+            ]
+        )
+        rows = list(bq.query(query, job_config=job_config).result())
+        if not rows or not rows[0].gcs_path:
+            return None
+        return rows[0].gcs_path
+    except Exception as e:
+        logger.error(
+            "Falha ao buscar gcs_path no BigQuery para edital_id %s: %s", edital_id, e
+        )
+        return None
+
+
+def get_pdf_text_from_gcs(edital_id: str) -> str | None:
+    """Baixa o PDF do GCS e extrai o texto. Retorna None se indisponível."""
+    gcs_path = _get_gcs_path_bq(edital_id)
+    if not gcs_path:
+        logger.warning("gcs_path não encontrado no BigQuery para edital_id=%s", edital_id)
+        return None
+
+    try:
+        gcs = _get_gcs()
+        bucket = gcs.bucket(GCS_BUCKET_NAME)
+        blob = bucket.blob(gcs_path)
+        if not blob.exists():
+            logger.warning(
+                "Blob não existe no GCS: gs://%s/%s (edital_id=%s)",
+                GCS_BUCKET_NAME,
+                gcs_path,
+                edital_id,
+            )
+            return None
+
+        pdf_bytes = blob.download_as_bytes()
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        pages_text = [page.extract_text() or "" for page in reader.pages]
+        return "\n".join(pages_text)
+    except Exception as exc:
+        logger.error(
+            "Falha ao extrair texto do PDF do GCS (edital_id=%s): %s", edital_id, exc
+        )
+        return None
+
+
 def _update_gcs_path_bq(edital_id: str, gcs_path: str) -> None:
     """Atualiza o campo gcs_path de um edital no BigQuery."""
     try:

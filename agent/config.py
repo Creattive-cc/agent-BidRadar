@@ -10,7 +10,6 @@ load_dotenv()
 class Settings(BaseModel):
     interval_hours: int = int(os.getenv("BIDRADAR_INTERVAL_HOURS", "6"))
     db_path: str = os.getenv("BIDRADAR_DB_PATH", "data/licitacoes.db")
-    llm_provider: str = os.getenv("BIDRADAR_LLM_PROVIDER", "heuristic")
     vertex_project_id: str = os.getenv("BIDRADAR_VERTEX_PROJECT_ID", "")
     vertex_location: str = os.getenv("BIDRADAR_VERTEX_LOCATION", "us-central1")
     vertex_model: str = os.getenv("BIDRADAR_VERTEX_MODEL", "gemini-1.5-flash")

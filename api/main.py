@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from agent.analyzer.gemini_analyzer import analyze_edital
+from agent.analyzer.gemini_analyzer import analyze_edital, score_bid_with_profile
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from agent.company_profile import PROFILE_DIR, ensure_profile_dir, read_profile_files, seed_documents_from_files
 from agent.config import settings
-from agent.downloader import download_pending_pdfs
+from agent.downloader import download_pending_pdfs, get_pdf_text_from_gcs
 from agent.logging_utils import get_logger
 from agent.models import AgentLog, Bid, CompanyDocument, FilterConfig, Product, SessionLocal, User, init_db
 from agent.runner import run_once
@@ -559,7 +559,38 @@ def _bid_to_dict(row: Bid) -> dict:
         "justification": row.justification,
         "resumo": row.resumo,
         "word_count": row.word_count,
+        "datas_prazos": json.loads(row.datas_prazos) if row.datas_prazos else [],
+        "itens_poc": json.loads(row.itens_poc) if row.itens_poc else [],
+        "checklist_documentos": json.loads(row.checklist_documentos) if row.checklist_documentos else [],
+        "envolve_producao_conteudo": bool(row.envolve_producao_conteudo),
         "created_at": row.created_at.isoformat(),
+    }
+
+
+def _analyzed_to_bid_kwargs(analyzed) -> dict:
+    from agent.schemas import AnalyzedBid
+
+    if not isinstance(analyzed, AnalyzedBid):
+        raise TypeError("Esperado AnalyzedBid")
+    return {
+        "title": analyzed.title,
+        "agency": analyzed.agency,
+        "estimated_value": analyzed.estimated_value,
+        "deadline": analyzed.deadline,
+        "data_publicacao": analyzed.data_publicacao,
+        "data_inicio_propostas": analyzed.data_inicio_propostas,
+        "data_abertura_propostas": analyzed.data_abertura_propostas,
+        "url": analyzed.url,
+        "source_site": analyzed.source_site,
+        "find_time_seconds": analyzed.find_time_seconds,
+        "analysis_time_seconds": analyzed.analysis_time_seconds,
+        "score": analyzed.score,
+        "justification": analyzed.justification,
+        "resumo": analyzed.resumo,
+        "datas_prazos": json.dumps([d.model_dump() for d in analyzed.datas_prazos]) if analyzed.datas_prazos else None,
+        "itens_poc": json.dumps([i.model_dump() for i in analyzed.itens_poc]) if analyzed.itens_poc else None,
+        "checklist_documentos": json.dumps([c.model_dump() for c in analyzed.checklist_documentos]) if analyzed.checklist_documentos else None,
+        "envolve_producao_conteudo": analyzed.envolve_producao_conteudo,
     }
 
 
@@ -652,7 +683,6 @@ def reprocess_bids(
     _: User = Depends(require_admin),
 ) -> dict:
     """Re-analisa bids com score >= min_score. Síncrono — aguarda conclusão."""
-    from agent.analyzer.matcher import score_bid_with_profile
     from agent.company_profile import read_profile_files
     from agent.schemas import ScrapedBid
 
@@ -682,6 +712,10 @@ def reprocess_bids(
                 row.justification = analyzed.justification
                 row.resumo = analyzed.resumo
                 row.analysis_time_seconds = analyzed.analysis_time_seconds
+                row.datas_prazos = json.dumps([d.model_dump() for d in analyzed.datas_prazos]) if analyzed.datas_prazos else None
+                row.itens_poc = json.dumps([i.model_dump() for i in analyzed.itens_poc]) if analyzed.itens_poc else None
+                row.checklist_documentos = json.dumps([c.model_dump() for c in analyzed.checklist_documentos]) if analyzed.checklist_documentos else None
+                row.envolve_producao_conteudo = analyzed.envolve_producao_conteudo
                 updated += 1
                 if i % 5 == 0:
                     session.commit()
@@ -716,7 +750,6 @@ def upload_analyze_bid(
     import io
     import uuid
     import pypdf
-    from agent.analyzer.matcher import score_bid_with_profile
     from agent.company_profile import read_profile_files
     from agent.schemas import ScrapedBid
 
@@ -763,17 +796,8 @@ def upload_analyze_bid(
 
     from datetime import timezone
     db_bid = Bid(
-        title=analyzed.title,
-        agency=analyzed.agency,
-        estimated_value=analyzed.estimated_value,
-        deadline=analyzed.deadline,
-        url=analyzed.url,
+        **_analyzed_to_bid_kwargs(analyzed),
         source_site="Upload Manual",
-        find_time_seconds=0.0,
-        analysis_time_seconds=analyzed.analysis_time_seconds,
-        score=analyzed.score,
-        justification=analyzed.justification,
-        resumo=analyzed.resumo,
         word_count=word_count,
         created_at=datetime.now(timezone.utc),
     )
@@ -818,13 +842,24 @@ def pubsub_analisar(payload: PubSubPushPayload) -> dict:
         download_results = download_pending_pdfs(limit=1)
         logger.info("Resultado do download: %s", download_results)
 
+        pdf_text = get_pdf_text_from_gcs(edital_id) or ""
+        word_count = len(pdf_text.split()) if pdf_text else 0
+        logger.info(
+            "Texto extraído do PDF: %d palavras (edital_id=%s)", word_count, edital_id
+        )
+        if not pdf_text:
+            logger.warning(
+                "PDF não disponível para edital_id=%s, análise baseada apenas em metadados",
+                edital_id,
+            )
+
         profile_docs = read_profile_files()
         company_profile_text = "\n\n".join(
             f"## {name}\n{content}" for name, content in profile_docs.items()
         )
         result = analyze_edital(
             edital_id=edital_id,
-            pdf_text="",
+            pdf_text=pdf_text,
             bid_metadata={"objetoCompra": numero},
             company_profile=company_profile_text,
         )

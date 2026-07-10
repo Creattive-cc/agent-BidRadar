@@ -25,6 +25,10 @@ class Bid(Base):
     justification: Mapped[str] = mapped_column(Text)
     resumo: Mapped[str | None] = mapped_column(Text, nullable=True)
     word_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    datas_prazos: Mapped[str | None] = mapped_column(Text, nullable=True)
+    itens_poc: Mapped[str | None] = mapped_column(Text, nullable=True)
+    checklist_documentos: Mapped[str | None] = mapped_column(Text, nullable=True)
+    envolve_producao_conteudo: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -110,9 +114,14 @@ def init_db() -> None:
     with engine.connect() as conn:
         for col, typedef in [
             ("word_count", "INTEGER"),
+            ("resumo", "TEXT"),
             ("data_publicacao", "VARCHAR(30)"),
             ("data_inicio_propostas", "VARCHAR(30)"),
             ("data_abertura_propostas", "VARCHAR(30)"),
+            ("datas_prazos", "TEXT"),
+            ("itens_poc", "TEXT"),
+            ("checklist_documentos", "TEXT"),
+            ("envolve_producao_conteudo", "BOOLEAN DEFAULT 0"),
         ]:
             try:
                 conn.execute(text(f"ALTER TABLE bids ADD COLUMN {col} {typedef}"))

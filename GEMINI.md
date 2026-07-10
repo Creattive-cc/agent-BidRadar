@@ -46,7 +46,9 @@ agent/
     bll.py            — Scraper BLL
     conlicitacao.py   — Scraper ConLicitação (pausado: aguardando credenciais)
   analyzer/
-    matcher.py        — Score de aderência edital x perfil da empresa
+    gemini_analyzer.py  — Análise de aderência edital × perfil (Vertex AI / Gemini)
+                          score_bid_with_profile() → AnalyzedBid (runner, API)
+                          analyze_edital() → AnalysisResult (Pub/Sub → BigQuery)
   company_profile.py  — Leitura dos arquivos .md do perfil da empresa (context RAG)
   models.py           — Modelos SQLAlchemy
   logging_utils.py    — get_logger("bidradar.modulo") — usar sempre este padrão
@@ -135,9 +137,14 @@ Scraper PNCP
     → PUBLISH Pub/Sub (topic: coleta-editais)
         → Cloud Run POST /pubsub/analisar
             → download_pending_pdfs()
-            → [futuro ID-41] extração de texto
-            → [futuro ID-43] análise Gemini (% aderência + checklist)
+            → analyze_edital() em gemini_analyzer.py
+                (score, prioridade, checklist, datas/prazos, POC, etc.)
+            → INSERT BigQuery (tabela analises)
 ```
+
+O ciclo local (`runner.py`) usa `score_bid_with_profile()` no mesmo módulo e persiste
+em SQLite (`AnalyzedBid` com `datas_prazos`, `itens_poc`, `checklist_documentos`,
+`envolve_producao_conteudo`).
 
 Mensagem publicada:
 ```json

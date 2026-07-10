@@ -14,24 +14,49 @@ class ScrapedBid(BaseModel):
     find_time_seconds: float = 0.0
 
 
+class DataPrazo(BaseModel):
+    tipo: str
+    data: str
+
+
+class ItemPOC(BaseModel):
+    descricao: str
+    ano_escolar: str
+    quantidade: str
+    observacao: str
+
+
+class DocumentoObrigatorio(BaseModel):
+    nome: str
+    exigido_no_edital: bool
+    observacao: str
+
+
 class AnalyzedBid(ScrapedBid):
     analysis_time_seconds: float
     score: float
     justification: str
     resumo: str | None = None
+    datas_prazos: list[DataPrazo] = []
+    itens_poc: list[ItemPOC] = []
+    checklist_documentos: list[DocumentoObrigatorio] = []
+    envolve_producao_conteudo: bool = False
 
 
 class ChecklistItem(BaseModel):
-    requisito: str  # descrição do requisito do edital
-    atendido: bool  # a empresa atende?
-    observacao: str  # justificativa curta
+    requisito: str
+    atendido: bool
+    observacao: str
 
 
 class AnalysisResult(BaseModel):
     edital_id: str
-    score: float  # 0-100
-    prioridade: str  # "alta" (>=85), "media" (>=60), "baixa" (<60)
-    resumo: str  # objeto, exigências técnicas, riscos, prazo impugnação
-    checklist: list[ChecklistItem]  # mín 3, máx 10 itens
-    justificativa: str  # por que esse score
-    rag_context_used: bool  # True quando RAG real, False quando mock
+    score: float
+    prioridade: str
+    resumo: str
+    checklist: list[ChecklistItem]
+    justificativa: str
+    rag_context_used: bool
+    datas_prazos: list[DataPrazo]
+    exige_amostra_ou_poc: bool
+    detalhe_amostra_poc: str
