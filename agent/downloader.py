@@ -275,6 +275,8 @@ def get_blob_size(gcs_path: str) -> int | None:
     """Retorna o tamanho em bytes de um blob do GCS, ou None se nao existir."""
     gcs = _get_gcs()
     blob = gcs.bucket(GCS_BUCKET_NAME).blob(gcs_path)
+    if not blob.exists():
+        return None
     blob.reload()
     return blob.size
 
