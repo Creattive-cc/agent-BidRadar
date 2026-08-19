@@ -86,29 +86,29 @@ export async function reprocessBids(minScore = 0) {
   }
 }
 
-// Upload & analyze bid PDF
-export async function uploadAnalyzeBid({ file, title = "", agency = "", url = "" }) {
-  const token = getToken();
-  const form = new FormData();
-  form.append("file", file);
-  form.append("title", title);
-  form.append("agency", agency);
-  form.append("url", url);
-  const res = await fetch(`${API_BASE}/uploads/analyze-bid`, {
+// Upload & analyze bid PDF — envia direto ao GCS via signed URL (arquivo não passa pelo Cloud Run)
+export async function uploadAnalyzeBid({ file, title = "", agency = "", url = "" }, { onProgress } = {}) {
+  onProgress?.("Preparando upload...");
+  const { signed_url, gcs_path } = await request("/uploads/signed-url", {
     method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
+    body: JSON.stringify({ content_type: file.type || "application/pdf" }),
   });
-  if (res.status === 401) {
-    localStorage.removeItem("br_token");
-    window.location.href = "/login";
-    return;
+
+  onProgress?.("Enviando arquivo...");
+  const putRes = await fetch(signed_url, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "application/pdf" },
+    body: file,
+  });
+  if (!putRes.ok) {
+    throw new Error("Falha ao enviar o arquivo. Tente novamente.");
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Erro desconhecido");
-  }
-  return res.json();
+
+  onProgress?.("Analisando edital...");
+  return request("/uploads/analyze-bid-gcs", {
+    method: "POST",
+    body: JSON.stringify({ gcs_path, filename: file.name, title, agency, url }),
+  });
 }
 
 // Company profile documents (DB-backed)

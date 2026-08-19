@@ -3,12 +3,15 @@
 import io
 import re
 import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urljoin
 
+import google.auth
 import pypdf
 import requests
+from google.auth.transport import requests as google_auth_requests
 from google.cloud import bigquery, storage
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -242,6 +245,60 @@ def _upload_to_gcs(pdf_bytes: bytes, gcs_path: str) -> str | None:
     except Exception as e:
         logger.error("Falha no upload para GCS (path: %s): %s", gcs_path, e)
         return None
+
+
+def generate_upload_signed_url(
+    content_type: str = "application/pdf",
+    expiration_minutes: int = 15,
+) -> tuple[str, str]:
+    """Gera uma signed URL (PUT) para upload direto ao GCS. Retorna (signed_url, gcs_path)."""
+    gcs_path = f"uploads/{uuid.uuid4()}.pdf"
+    gcs = _get_gcs()
+    bucket = gcs.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(gcs_path)
+
+    credentials, _ = google.auth.default()
+    credentials.refresh(google_auth_requests.Request())
+
+    signed_url = blob.generate_signed_url(
+        version="v4",
+        expiration=timedelta(minutes=expiration_minutes),
+        method="PUT",
+        content_type=content_type,
+        service_account_email=credentials.service_account_email,
+        access_token=credentials.token,
+    )
+    return signed_url, gcs_path
+
+
+def get_blob_size(gcs_path: str) -> int | None:
+    """Retorna o tamanho em bytes de um blob do GCS, ou None se nao existir."""
+    gcs = _get_gcs()
+    blob = gcs.bucket(GCS_BUCKET_NAME).blob(gcs_path)
+    blob.reload()
+    return blob.size
+
+
+def download_blob_bytes(gcs_path: str) -> bytes | None:
+    """Baixa os bytes de um blob do GCS dado o path. Retorna None se nao existir."""
+    try:
+        gcs = _get_gcs()
+        blob = gcs.bucket(GCS_BUCKET_NAME).blob(gcs_path)
+        if not blob.exists():
+            return None
+        return blob.download_as_bytes()
+    except Exception as exc:
+        logger.error("Falha ao baixar blob do GCS (path: %s): %s", gcs_path, exc)
+        return None
+
+
+def delete_blob(gcs_path: str) -> None:
+    """Remove um blob do GCS (limpeza pos-processamento)."""
+    try:
+        gcs = _get_gcs()
+        gcs.bucket(GCS_BUCKET_NAME).blob(gcs_path).delete()
+    except Exception as exc:
+        logger.warning("Falha ao deletar blob do GCS (path: %s): %s", gcs_path, exc)
 
 
 def _get_gcs_path_bq(edital_id: str) -> str | None:

@@ -26,6 +26,7 @@ export default function Upload() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState("");
 
   function handleFile(f) {
     if (!f) return;
@@ -51,13 +52,15 @@ export default function Upload() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setProgress("");
     try {
-      const bid = await uploadAnalyzeBid({ file });
+      const bid = await uploadAnalyzeBid({ file }, { onProgress: setProgress });
       setResult(bid);
     } catch (err) {
       setError(err.message || "Erro ao analisar o PDF.");
     } finally {
       setLoading(false);
+      setProgress("");
     }
   }
 
@@ -124,7 +127,7 @@ export default function Upload() {
                 <p className="text-sm text-gray-500">
                   Arraste o PDF aqui ou <span className="text-violet-600 font-medium">clique para selecionar</span>
                 </p>
-                <p className="text-xs text-gray-400">Máx. 20 MB</p>
+                <p className="text-xs text-gray-400">Máx. 150 MB</p>
               </div>
             )}
           </div>
@@ -145,7 +148,7 @@ export default function Upload() {
                   <path className="opacity-75" fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Analisando com Gemini...
+                {progress || "Analisando com Gemini..."}
               </>
             ) : (
               "Analisar Edital"

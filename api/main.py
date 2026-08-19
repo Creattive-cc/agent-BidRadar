@@ -738,27 +738,14 @@ def trigger_agent(_: User = Depends(get_current_user)) -> dict:
     return {"status": "accepted"}
 
 
-@app.post("/uploads/analyze-bid", status_code=200)
-def upload_analyze_bid(
-    file: UploadFile = File(...),
-    title: str = Form(default=""),
-    agency: str = Form(default=""),
-    url: str = Form(default=""),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+def _analyze_pdf_bytes_and_save(
+    pdf_bytes: bytes, filename: str, title: str, agency: str, url: str, db: Session
 ) -> dict:
     import io
     import uuid
     import pypdf
     from agent.company_profile import read_profile_files
     from agent.schemas import ScrapedBid
-
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Envie um arquivo PDF.")
-
-    pdf_bytes = file.file.read()
-    if len(pdf_bytes) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="PDF muito grande. Limite: 20 MB.")
 
     pdf_text = ""
     word_count = None
@@ -770,7 +757,7 @@ def upload_analyze_bid(
     except Exception as exc:
         logger.warning("Falha ao extrair texto do PDF: %s", exc)
 
-    bid_title = title.strip() or (file.filename.replace(".pdf", "").replace("_", " ")[:500])
+    bid_title = title.strip() or (filename.replace(".pdf", "").replace("_", " ")[:500])
     fake_url = url.strip() or f"upload://{uuid.uuid4()}"
 
     bid = ScrapedBid(
@@ -806,6 +793,90 @@ def upload_analyze_bid(
     db.refresh(db_bid)
 
     return _bid_to_dict(db_bid)
+
+
+@app.post("/uploads/analyze-bid", status_code=200)
+def upload_analyze_bid(
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    agency: str = Form(default=""),
+    url: str = Form(default=""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Envie um arquivo PDF.")
+
+    pdf_bytes = file.file.read()
+    if len(pdf_bytes) > 150 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="PDF muito grande. Limite: 150 MB.")
+
+    return _analyze_pdf_bytes_and_save(pdf_bytes, file.filename, title, agency, url, db)
+
+
+class SignedUrlRequest(BaseModel):
+    content_type: str = "application/pdf"
+
+
+@app.post("/uploads/signed-url", status_code=200)
+def create_upload_signed_url(
+    payload: SignedUrlRequest = SignedUrlRequest(),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    from agent.downloader import generate_upload_signed_url
+
+    try:
+        signed_url, gcs_path = generate_upload_signed_url(
+            content_type=payload.content_type or "application/pdf"
+        )
+    except Exception as exc:
+        logger.error("Falha ao gerar signed URL de upload: %s", exc)
+        raise HTTPException(status_code=500, detail="Falha ao preparar upload.")
+
+    return {"signed_url": signed_url, "gcs_path": gcs_path}
+
+
+class AnalyzeBidGcsRequest(BaseModel):
+    gcs_path: str
+    filename: str = ""
+    title: str = ""
+    agency: str = ""
+    url: str = ""
+
+
+@app.post("/uploads/analyze-bid-gcs", status_code=200)
+def upload_analyze_bid_gcs(
+    payload: AnalyzeBidGcsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    from agent.downloader import delete_blob, download_blob_bytes, get_blob_size
+
+    if not payload.gcs_path.startswith("uploads/"):
+        raise HTTPException(status_code=400, detail="gcs_path inválido.")
+
+    size = get_blob_size(payload.gcs_path)
+    if size is None:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no GCS.")
+    if size > 150 * 1024 * 1024:
+        delete_blob(payload.gcs_path)
+        raise HTTPException(status_code=400, detail="PDF muito grande. Limite: 150 MB.")
+
+    pdf_bytes = download_blob_bytes(payload.gcs_path)
+    if pdf_bytes is None:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado no GCS.")
+
+    try:
+        return _analyze_pdf_bytes_and_save(
+            pdf_bytes,
+            payload.filename or "edital.pdf",
+            payload.title,
+            payload.agency,
+            payload.url,
+            db,
+        )
+    finally:
+        delete_blob(payload.gcs_path)
 
 
 @app.post("/admin/trigger", status_code=202)
