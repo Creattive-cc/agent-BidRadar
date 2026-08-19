@@ -784,7 +784,6 @@ def _analyze_pdf_bytes_and_save(
     from datetime import timezone
     db_bid = Bid(
         **_analyzed_to_bid_kwargs(analyzed),
-        source_site="Upload Manual",
         word_count=word_count,
         created_at=datetime.now(timezone.utc),
     )
